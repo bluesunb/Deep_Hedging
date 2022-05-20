@@ -7,9 +7,9 @@ from datetime import datetime
 from typing import Optional, Tuple
 
 from Env.env import BSMarket
-from Env.feature_extractor.feature_extractor import BatchNormExtractor
-from Env.callbacks.callbacks import ReportCallbacks
-from Algorithms.policies.ddpg import DoubleTD3Policy
+from Env.feature_extractor import BatchNormExtractor
+from Algorithms.learn.callbacks import ReportCallbacks
+from Algorithms.policies import DoubleTD3Policy
 
 from stable_baselines3.common.noise import NormalActionNoise
 
