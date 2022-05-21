@@ -29,13 +29,13 @@ def get_now(f_string='%y%m%d-%H%M'):
 
 
 def save_config(path: str,
-                env_kwargs: EasyDict,
-                model_kwargs: EasyDict,
-                learn_kwargs: EasyDict) -> None:
+                env_kwargs: dict,
+                model_kwargs: dict,
+                learn_kwargs: dict) -> None:
 
-    config = EasyDict(env_kwargs=env_kwargs,
-                      model_kwargs=model_kwargs,
-                      learn_kwargs=learn_kwargs)
+    config = {'env_kwargs': env_kwargs,
+              'model_kwargs': model_kwargs,
+              'learn_kwargs': learn_kwargs}
 
     config = easydict_to_dict(config)
 
@@ -45,7 +45,7 @@ def save_config(path: str,
     print(f'{path} was saved.')
 
 
-def load_config(path: Optional[str] = None) -> Tuple[EasyDict, ...]:
+def load_config(path: Optional[str] = None) -> Tuple[dict, ...]:
     if path is None:
         config = default_config()
     else:
@@ -59,8 +59,8 @@ def load_config(path: Optional[str] = None) -> Tuple[EasyDict, ...]:
     return env_kwargs, model_kwargs, learn_kwargs
 
 
-def default_config() -> EasyDict:
-    env_kwargs = {'n_assets': 50000,
+def default_config() -> dict:
+    env_kwargs = {'n_assets': 5,
                   'cost': 0.02,
                   'n_periods': 30,
                   'freq': 1,
@@ -130,9 +130,17 @@ def default_config() -> EasyDict:
                     'eval_log_path': f'logs/tb_logs/ddpg_{now}_1',
                     'reset_num_timesteps': True}
 
-    config = EasyDict(env_kwargs=env_kwargs,
-                      model_kwargs=model_kwargs,
-                      learn_kwargs=learn_kwargs)
+    # config = EasyDict(env_kwargs=env_kwargs,
+    #                   model_kwargs=model_kwargs,
+    #                   learn_kwargs=learn_kwargs)
+    config = {'env_kwargs': env_kwargs,
+              'model_kwargs': model_kwargs,
+              'learn_kwargs': learn_kwargs}
 
     return config
 
+config = default_config()
+
+from Algorithms.double_ddpg import DDPG
+
+model = DDPG(**config['model_kwargs'])
