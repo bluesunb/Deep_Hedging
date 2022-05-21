@@ -31,11 +31,16 @@ def get_now(f_string='%y%m%d-%H%M'):
 def save_config(path: str,
                 env_kwargs: dict,
                 model_kwargs: dict,
-                learn_kwargs: dict) -> None:
+                learn_kwargs: dict,
+                **kwargs) -> None:
+    # custom env 또는 custom class는 class type + class kwargs로 따로 저장된다.
+    model_kwargs['env'] = type(model_kwargs['env'])
+    learn_kwargs['eval_env'] = type(learn_kwargs['eval_env'])
 
     config = {'env_kwargs': env_kwargs,
               'model_kwargs': model_kwargs,
-              'learn_kwargs': learn_kwargs}
+              'learn_kwargs': learn_kwargs,
+              'kwargs': kwargs}
 
     config = easydict_to_dict(config)
 
@@ -51,16 +56,40 @@ def load_config(path: Optional[str] = None) -> Tuple[dict, ...]:
     else:
         config = yaml.load(open(path, 'r'), Loader=yaml.Loader)
 
-    config = EasyDict(config)
     env_kwargs = config['env_kwargs']
     model_kwargs = config['model_kwargs']
     learn_kwargs = config['learn_kwargs']
+    kwargs = config['kwargs']
+
+    # restore env
+    model_kwargs['env'] = model_kwargs['env'](**env_kwargs)
+
+    eval_env_kwargs = kwargs.get('eval_env_kwargs', env_kwargs)
+    learn_kwargs['eval_env'] = learn_kwargs['eval_env'](**eval_env_kwargs)
 
     return env_kwargs, model_kwargs, learn_kwargs
 
 
+def reconstruct_config(env_kwargs, model_kwargs, learn_kwargs, **kwargs):
+    env = type(model_kwargs['env'])(**env_kwargs)
+    model_kwargs['env'] = env
+    print(f"model_kwargs['env']: {env}")
+
+    eval_env_kwargs = kwargs.get('eval_env_kwargs', env_kwargs)
+    eval_env = type(learn_kwargs['eval_env'])(**eval_env_kwargs)
+    learn_kwargs['eval_env'] = eval_env
+    print(f"learn_kwargs['eval_env']: {eval_env}")
+
+    learn_kwargs['tb_log_name'] = "ddpg_" + get_now()
+    print(f"learn_kwargs['tb_log_name']: {learn_kwargs['tb_log_name']}")
+
+    learn_kwargs['eval_log_path'] = \
+        model_kwargs['tensorboard_log'] + '/' + learn_kwargs['tb_log_name'] + '_1'
+    print(f"learn_kwargs['eval_log_path']: {learn_kwargs['eval_log_path']}")
+
+
 def default_config() -> dict:
-    env_kwargs = {'n_assets': 5,
+    env_kwargs = {'n_assets': 1000,
                   'cost': 0.02,
                   'n_periods': 30,
                   'freq': 1,
@@ -130,17 +159,8 @@ def default_config() -> dict:
                     'eval_log_path': f'logs/tb_logs/ddpg_{now}_1',
                     'reset_num_timesteps': True}
 
-    # config = EasyDict(env_kwargs=env_kwargs,
-    #                   model_kwargs=model_kwargs,
-    #                   learn_kwargs=learn_kwargs)
     config = {'env_kwargs': env_kwargs,
               'model_kwargs': model_kwargs,
               'learn_kwargs': learn_kwargs}
 
     return config
-
-config = default_config()
-
-from Algorithms.double_ddpg import DDPG
-
-model = DDPG(**config['model_kwargs'])

@@ -35,6 +35,7 @@ class BSMarket(gym.Env):
         super(BSMarket, self).__init__()
         self.n_assets = n_assets
         self.transaction_cost = cost
+        self.cost = self.transaction_cost
 
         self.period_unit = period_unit
         self.n_periods = int(n_periods / freq)     # 30 / 0.5 = 60
