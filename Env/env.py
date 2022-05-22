@@ -127,7 +127,7 @@ class BSMarket(gym.Env):
         return step_return
 
     def pnl_step(self, action: np.ndarray) -> GymStepReturn:
-        done, info = False, dict()
+        done, info = False, {}
 
         now_underlying, underlying = self.underlying_prices[self.now:self.now+2]
         now_option, option = self.option_prices[self.now:self.now+2]
@@ -148,25 +148,23 @@ class BSMarket(gym.Env):
         self.now += 1
         self.hedge = action
 
-        reward = payoff + price_gain - cost
-        reward = np.mean(reward) - 2.0*np.std(reward)
+        raw_reward = payoff + price_gain - cost
+        reward = np.mean(raw_reward) - 2.0*np.std(raw_reward)
+        info['raw_reward'] = raw_reward
 
         return self.get_obs(), reward, done, info
 
-    def eval(self):
-        state = self.reset()
+    def pnl_eval(self, model):
+        obs = self.reset()
         reward, done, info = 0, False, {}
-        first_done = False
-        while True:
-            print(f'now: {self.now}')
-            print(f'state:')
-            pprint(state)
-            print(f'reward: {reward}, done: {done}, info: {info}')
-            if done and first_done:
-                break
-            action = 1/(1+np.exp(-np.random.randn(self.n_assets)))
-            state, reward, done, info = self.step(action)
-            if done: first_done = True
+        total_raw_reward = 0
+        while not done:
+            action, _ = model.predict(obs, deterministic=False)
+            action = model.policy.unscale_action(action)
+            obs, reward, done, info = self.step(action)
+            total_raw_reward += info['raw_reward']
+
+        return total_raw_reward
 
     @staticmethod
     def get_payoff_fn(payoff_name):
