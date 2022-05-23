@@ -4,7 +4,7 @@ import yaml
 
 from easydict import EasyDict
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 from Env.env import BSMarket
 from Env.feature_extractor import BatchNormExtractor
@@ -27,15 +27,24 @@ def lr_schedule(left: float):
 def get_now(f_string='%y%m%d-%H%M'):
     return datetime.now().strftime(f_string)
 
+def get_config_copy(*args: List[dict]):
+    args_copy = [arg.copy() for arg in args]
+    return args_copy
 
 def save_config(path: str,
-                env_kwargs: dict,
-                model_kwargs: dict,
-                learn_kwargs: dict,
+                env_kwargs_src: dict,
+                model_kwargs_src: dict,
+                learn_kwargs_src: dict,
                 **kwargs) -> None:
+
+    env_kwargs, model_kwargs, learn_kwargs =\
+        get_config_copy(env_kwargs_src, model_kwargs_src, learn_kwargs_src)
+
     # custom env 또는 custom class는 class type + class kwargs로 따로 저장된다.
-    model_kwargs['env'] = type(model_kwargs['env'])
-    learn_kwargs['eval_env'] = type(learn_kwargs['eval_env'])
+    if not isinstance(model_kwargs['env'], (type, str)):
+        model_kwargs['env'] = type(model_kwargs['env'])
+    if not isinstance(learn_kwargs['eval_env'], (type, str)):
+        learn_kwargs['eval_env'] = type(learn_kwargs['eval_env'])
 
     config = {'env_kwargs': env_kwargs,
               'model_kwargs': model_kwargs,
