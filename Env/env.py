@@ -66,6 +66,8 @@ class BSMarket(gym.Env):
         self.observation_space = spaces.Box(0, np.inf, shape=(n_assets, 4))
         self.action_space = spaces.Box(0, 1, shape=(n_assets, ))
 
+        print("env 'BSMarket was created!")
+
     def seed(self, seed=None):
         np.random.seed(seed)
         th.manual_seed(seed)

@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 
 from Env.env import BSMarket
 from Env.feature_extractor import BatchNormExtractor
-from Algorithms.learn.callbacks import ReportCallbacks
+from Algorithms.learn.utils.callbacks import ReportCallbacks
 from Algorithms.policies import DoubleTD3Policy
 
 from stable_baselines3.common.noise import NormalActionNoise
@@ -128,13 +128,13 @@ def default_config() -> dict:
     model_kwargs = {'policy': DoubleTD3Policy,
                     'env': env,
                     'learning_rate': lr_schedule,
-                    'buffer_size': 100,
+                    'buffer_size': 200,
                     'learning_starts': 100,
-                    'batch_size': 10,
+                    'batch_size': 15,
                     'tau': 0.005,
                     'gamma': 0.99,
                     'train_freq': (1, "episode"),
-                    'gradient_steps': 5,
+                    'gradient_steps': -1,
                     'action_noise': NormalActionNoise(mean=0.0, sigma=0.1),
                     'replay_buffer_class': None,
                     'replay_buffer_kwargs': replay_buffer_kwargs,
@@ -149,7 +149,7 @@ def default_config() -> dict:
     now = get_now('%y%m%d-%H%M')
     callback = ReportCallbacks(verbose=2)
 
-    learn_kwargs = {'total_timesteps': 500,
+    learn_kwargs = {'total_timesteps': 1000,
                     'callback': callback,
                     'log_interval': 30,
                     'eval_env': eval_env,
