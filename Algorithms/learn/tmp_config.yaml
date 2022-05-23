@@ -13,35 +13,24 @@ env_kwargs:
   risk_free_interest: 0.0
   strike: 1.0
   volatility: 0.2
-kwargs: {}
+kwargs:
+  callback_kwargs: {}
 learn_kwargs:
-  callback: !!python/object:Algorithms.learn.utils.callbacks.ReportCallbacks
-    globals: {}
-    locals: {}
-    logger: null
-    model: null
-    n_calls: 0
-    now_time: 0
-    num_timesteps: 0
-    parent: null
-    rollout_start: 0
-    training_env: null
-    training_start: 0
-    verbose: 2
+  callback: !!python/name:Algorithms.learn.utils.callbacks.ReportCallbacks ''
   eval_env: &id001 !!python/name:Env.env.BSMarket ''
   eval_freq: 30
-  eval_log_path: logs/tb_logs/ddpg_220522-2239_1
+  eval_log_path: logs/tb_logs/ddpg_220523-1814_1
   log_interval: 30
   n_eval_episodes: 1
   reset_num_timesteps: true
-  tb_log_name: ddpg_220522-2239
-  total_timesteps: 500
+  tb_log_name: ddpg_220523-1814
+  total_timesteps: 1000
 model_kwargs:
   action_noise: !!python/object:stable_baselines3.common.noise.NormalActionNoise
     _mu: 0.0
     _sigma: 0.1
-  batch_size: 10
-  buffer_size: 100
+  batch_size: 15
+  buffer_size: 200
   create_eval_env: false
   device: auto
   env: *id001

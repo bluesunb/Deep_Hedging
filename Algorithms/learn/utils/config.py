@@ -41,10 +41,14 @@ def save_config(path: str,
         get_config_copy(env_kwargs_src, model_kwargs_src, learn_kwargs_src)
 
     # custom env 또는 custom class는 class type + class kwargs로 따로 저장된다.
-    if not isinstance(model_kwargs['env'], (type, str)):
-        model_kwargs['env'] = type(model_kwargs['env'])
-    if not isinstance(learn_kwargs['eval_env'], (type, str)):
-        learn_kwargs['eval_env'] = type(learn_kwargs['eval_env'])
+    def return_type(config, key):
+        obj = config[key]
+        if not isinstance(obj, (type, str)):
+            config[key] = type(obj)
+
+    return_type(model_kwargs, 'env')
+    return_type(learn_kwargs, 'eval_env')
+    return_type(learn_kwargs, 'callback')
 
     config = {'env_kwargs': env_kwargs,
               'model_kwargs': model_kwargs,
@@ -75,6 +79,10 @@ def load_config(path: Optional[str] = None) -> Tuple[dict, ...]:
 
     eval_env_kwargs = kwargs.get('eval_env_kwargs', env_kwargs)
     learn_kwargs['eval_env'] = learn_kwargs['eval_env'](**eval_env_kwargs)
+
+    # restore callbacks
+    callback_kwargs = kwargs.get('callback_kwargs', dict())
+    learn_kwargs['callback'] = learn_kwargs['callback'](**callback_kwargs)
 
     return env_kwargs, model_kwargs, learn_kwargs
 
