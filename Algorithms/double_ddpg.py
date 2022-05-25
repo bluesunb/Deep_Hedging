@@ -177,21 +177,21 @@ class DDPG(TD3):
             # Delayed policy updates
             if self._n_updates % self.policy_delay == 0:
                 # Compute actor loss
-                # actor_loss = -self.critic.q1_forward(replay_data.observations,
-                #                                      self.actor(replay_data.observations)).mean()
-
                 mean_cost_loss = -self.critic.q1_forward(replay_data.observations,
                                                          self.actor(replay_data.observations)).mean()
 
-                std_cost_loss = self.critic2.q1_forward(replay_data.observations,
-                                                        self.actor(replay_data.observations)).mean() * \
-                                self.env.envs[0].env.transaction_cost
+                # std_cost_loss = self.critic2.q1_forward(replay_data.observations,
+                #                                         self.actor(replay_data.observations)).mean() * \
+                #                 self.env.envs[0].env.transaction_cost
+
+                std_cost_loss = F.relu(
+                    self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations)) - \
+                    self.critic.q1_forward(replay_data.observations, self.actor(replay_data.observations)) ** 2
+                ).mean()
+
+                std_cost_loss = th.sqrt(std_cost_loss) * self.env.envs[0].env.transaction_cost
 
                 actor_loss = mean_cost_loss + std_cost_loss
-                # actor_loss = actor_loss + self.env.envs[0].env.transaction_cost * th.sqrt(
-                #     self.critic2.q1_forward(replay_data.observations,
-                #                             self.actor(replay_data.observations)).mean() - actor_loss**2
-                # )
                 actor_losses.append(actor_loss.item())
 
                 # Optimize the actor
