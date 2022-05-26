@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional, Tuple, List
 
 from Env.env import BSMarket
-from Env.feature_extractor import BatchNormExtractor
+from Env.feature_extractor import MarketObsExtractor, BatchNormExtractor
 from Algorithms.learn.utils.callbacks import ReportCallbacks
 from Algorithms.policies import DoubleTD3Policy
 
@@ -132,7 +132,7 @@ def default_config() -> dict:
 
     policy_kwargs = {'net_arch': [],  # None으로 설정하면 deafult net arch가 설정됨
                      'activation_fn': nn.ReLU,
-                     'features_extractor_class': BatchNormExtractor,
+                     'features_extractor_class': MarketObsExtractor,
                      'features_extractor_kwargs': features_extractor_kwargs,
                      'normalize_images': False,
                      'optimizer_class': th.optim.Adam,

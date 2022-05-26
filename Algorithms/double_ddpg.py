@@ -79,6 +79,7 @@ class DDPG(TD3):
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
+        std_coeff: float = 0.02,
     ):
 
         super(DDPG, self).__init__(
@@ -110,6 +111,8 @@ class DDPG(TD3):
             _init_setup_model=False,
         )
 
+        self.std_coeff = std_coeff
+
         # Use only one critic
         if "n_critics" not in self.policy_kwargs:
             self.policy_kwargs["n_critics"] = 1
@@ -131,6 +134,8 @@ class DDPG(TD3):
 
         actor_losses, critic_losses = [], []
         critic2_losses = []
+        mean_cost_losses = []
+        std_cost_losses = []
 
         for _ in range(gradient_steps):
 
@@ -180,19 +185,17 @@ class DDPG(TD3):
                 mean_cost_loss = -self.critic.q1_forward(replay_data.observations,
                                                          self.actor(replay_data.observations)).mean()
 
-                # std_cost_loss = self.critic2.q1_forward(replay_data.observations,
-                #                                         self.actor(replay_data.observations)).mean() * \
-                #                 self.env.envs[0].env.transaction_cost
-
-                std_cost_loss = F.relu(
+                std_cost_loss = th.abs(
                     self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations)) - \
                     self.critic.q1_forward(replay_data.observations, self.actor(replay_data.observations)) ** 2
-                ).mean()
+                )
 
-                std_cost_loss = th.sqrt(std_cost_loss) * self.env.envs[0].env.transaction_cost
+                std_cost_loss = th.sqrt(std_cost_loss).mean() * self.std_coeff
 
                 actor_loss = mean_cost_loss + std_cost_loss
                 actor_losses.append(actor_loss.item())
+                mean_cost_losses.append(mean_cost_loss.item())
+                std_cost_losses.append(std_cost_loss.item())
 
                 # Optimize the actor
                 self.actor.optimizer.zero_grad()
@@ -206,6 +209,8 @@ class DDPG(TD3):
         self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
         if len(actor_losses) > 0:
             self.logger.record("train/actor_loss", np.mean(actor_losses))
+            self.logger.record("train/mean_cost_loss", np.mean(mean_cost_losses))
+            self.logger.record("train/std_cost_loss", np.mean(std_cost_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         self.logger.record("train/critic2_loss", np.mean(critic2_losses))
 

@@ -22,22 +22,22 @@ class MarketObsExtractor(BaseFeaturesExtractor):
                  activation_fn: nn.Module):
 
         super(MarketObsExtractor, self).__init__(observation_space,
-                                                 features_dim=features_out * observation_space.shape[0])
+                                                 features_dim=features_out)
         # batchNorm1d 는 분포의 단위를 2번째(idx:1) 차원으로 본다.
         # nn.BatchNorm1d(4)([[1,2,3,4],[5,6,7,8]]) = [[a...],[b...]]
         # nn.BatchNorm1d(3)([[[1,2,3,4],[5,6,7,8]], [[1,3,5,7],[2,4,6,8]]]) = [[[a,..],[a..]], [[b,..],[b,..]]]
 
-        # obs가 batch (rank=3)으로 나오는게 강력하게 의심됨됨
         modules = []
         n_assets = observation_space.shape[0]
 
         if len(net_arch) > 0:
+            modules.append(nn.BatchNorm1d(n_assets))
             modules.append(nn.Linear(features_in, net_arch[0]))
             modules.append(activation_fn())
 
         for idx in range(len(net_arch) - 1):
             # modules.append(nn.BatchNorm1d(num_features=net_arch[idx]))
-            modules.append(nn.BatchNorm1d(num_features=n_assets))
+            modules.append(nn.BatchNorm1d(n_assets))
             modules.append(nn.Linear(net_arch[idx], net_arch[idx + 1]))
             modules.append(activation_fn())
 
@@ -47,16 +47,14 @@ class MarketObsExtractor(BaseFeaturesExtractor):
                 modules.append(nn.BatchNorm1d(n_assets))
             modules.append(nn.Linear(last_layer_dim, features_out))
 
-        self.bn = nn.BatchNorm1d(num_features=n_assets)
         self.layers = nn.Sequential(*modules)
 
     def forward(self, observations: Dict[str, th.Tensor]) -> th.Tensor:
         # observation : Dict[np.ndarray(bs ,n_assets, n_features)]
         # obs = th.unsqueeze(observations, dim=0)     # (1, bs, n_assets, n_features)
-        obs = self.bn(observations)
-        obs = self.layers(obs)
-        obs = th.flatten(obs, start_dim=-2, end_dim=-1)
-        return obs
+        # obs = self.bn(observations)
+        # obs = self.layers(obs)
+        return self.layers(observations)
 
 
 class BatchNormExtractor(BaseFeaturesExtractor):

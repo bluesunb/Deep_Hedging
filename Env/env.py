@@ -59,6 +59,7 @@ class BSMarket(gym.Env):
         self.underlying_prices = None
         self.option_prices = None
         self.hedge = None
+        self.delta = None
 
         self.reset()
 
@@ -90,13 +91,14 @@ class BSMarket(gym.Env):
         moneyness = self.underlying_prices/self.strike
         expiry = self.maturity - np.arange(len(self.underlying_prices))[:, None] * self.dt
 
-        self.option_prices = european_call_price(moneyness,
+        self.option_prices, self.delta = european_call_price(
+                                                 moneyness,
                                                  expiry,
                                                  self.volatility,
                                                  risk_free_interest=self.risk_free_interest,
                                                  strike=self.strike,
                                                  dividend=self.dividend,
-                                                 delta_return=False)
+                                                 delta_return=True)
         return self.get_obs()
 
     def get_obs(self) -> GymObs:
@@ -118,6 +120,7 @@ class BSMarket(gym.Env):
         step - reward는 scalar로 전달되어야 하므로 n_assets의 reward에 대해 mean-variance measure를 취함
         """
         assert np.all(action >= 0), f"action: {action} out of range"
+        # assert action.shape == (self.n_assets, 1)
 
         step_return = None
         if self.reward_mode == 'pnl':
@@ -131,6 +134,7 @@ class BSMarket(gym.Env):
     def pnl_step(self, action: np.ndarray) -> GymStepReturn:
         done, info = False, {}
 
+        action = action.flatten()
         now_underlying, underlying = self.underlying_prices[self.now:self.now+2]
         now_option, option = self.option_prices[self.now:self.now+2]
 
@@ -165,6 +169,19 @@ class BSMarket(gym.Env):
             action = model.policy.unscale_action(action)
             obs, reward, done, info = self.step(action)
             total_raw_reward += info['raw_reward']
+
+        return total_raw_reward
+
+    def delta_eval(self):
+        obs = self.reset()
+        reward, done, info = 0, False, {}
+        total_raw_reward = 0
+        i = 1
+        while not done:
+            action = self.delta[i].copy()
+            obs, reward, done, info = self.step(action)
+            total_raw_reward += info['raw_reward']
+            i += 1
 
         return total_raw_reward
 
