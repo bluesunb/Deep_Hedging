@@ -166,7 +166,6 @@ class BSMarket(gym.Env):
         total_raw_reward = 0
         while not done:
             action, _ = model.predict(obs, deterministic=False)
-            action = model.policy.unscale_action(action)
             obs, reward, done, info = self.step(action)
             total_raw_reward += info['raw_reward']
 
