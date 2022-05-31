@@ -120,7 +120,7 @@ class BSMarket(gym.Env):
         step - reward는 scalar로 전달되어야 하므로 n_assets의 reward에 대해 mean-variance measure를 취함
         """
         assert np.all(action >= 0), f"action: {action} out of range"
-        # assert action.shape == (self.n_assets, 1)
+        assert action.shape == (self.n_assets, )
 
         step_return = None
         if self.reward_mode == 'pnl':
@@ -134,7 +134,7 @@ class BSMarket(gym.Env):
     def pnl_step(self, action: np.ndarray) -> GymStepReturn:
         done, info = False, {}
 
-        action = action.flatten()
+        # action = action.flatten()
         now_underlying, underlying = self.underlying_prices[self.now:self.now+2]
         now_option, option = self.option_prices[self.now:self.now+2]
 

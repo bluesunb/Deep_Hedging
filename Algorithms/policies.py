@@ -2,9 +2,9 @@ from typing import Any, Dict, List, Optional, Type, Union, Tuple
 
 import gym
 import torch as th
-from torch import nn
+import torch.nn as nn
+import torch.nn.functional as F
 
-from stable_baselines3.common.preprocessing import get_action_dim
 from stable_baselines3.common.torch_layers import (
     BaseFeaturesExtractor,
     FlattenExtractor,
@@ -14,17 +14,20 @@ from stable_baselines3.common.type_aliases import Schedule
 from stable_baselines3.td3.policies import TD3Policy, BasePolicy
 from stable_baselines3.common.policies import BaseModel
 
+from Utils.tensors import clamp, to_numpy
+from Utils.prices import european_call_delta
+
 
 class CustomActor(BasePolicy):
     def __init__(
-        self,
-        observation_space: gym.spaces.Space,
-        action_space: gym.spaces.Space,
-        net_arch: List[int],
-        features_extractor: nn.Module,
-        features_dim: int,
-        activation_fn: Type[nn.Module] = nn.ReLU,
-        normalize_images: bool = True,
+            self,
+            observation_space: gym.spaces.Space,
+            action_space: gym.spaces.Space,
+            net_arch: List[int],
+            features_extractor: nn.Module,
+            features_dim: int,
+            activation_fn: Type[nn.Module] = nn.ReLU,
+            normalize_images: bool = True,
     ):
         super(CustomActor, self).__init__(
             observation_space,
@@ -67,6 +70,73 @@ class CustomActor(BasePolicy):
         return self.forward(observation)
 
 
+class NoTransactionBandActor(BasePolicy):
+    def __init__(
+            self,
+            observation_space: gym.spaces.Space,
+            action_space: gym.spaces.Space,
+            net_arch: List[int],
+            features_extractor: nn.Module,
+            features_dim: int,
+            activation_fn: Type[nn.Module] = nn.ReLU,
+            normalize_images: bool = True,
+    ):
+        super(NoTransactionBandActor, self).__init__(
+            observation_space,
+            action_space,
+            features_extractor=features_extractor,
+            normalize_images=normalize_images,
+            squash_output=True,
+        )
+
+        self.net_arch = net_arch
+        self.features_dim = features_dim
+        self.activation_fn = activation_fn
+
+        # action_dim = get_action_dim(self.action_space)
+        action_dim = 2
+        actor_net = create_mlp(features_dim, action_dim, net_arch, activation_fn, squash_output=True)
+
+        # Deterministic action
+        self.mu = nn.Sequential(*actor_net)
+        self.flatten = nn.Flatten(-2, -1)
+
+    def _get_constructor_parameters(self) -> Dict[str, Any]:
+        data = super()._get_constructor_parameters()
+
+        data.update(
+            dict(
+                net_arch=self.net_arch,
+                features_dim=self.features_dim,
+                activation_fn=self.activation_fn,
+                features_extractor=self.features_extractor,
+            )
+        )
+        return data
+
+    def forward(self, obs: th.Tensor) -> th.Tensor:
+        moneyness, expiry, volatility = obs[..., 0], obs[..., 1], obs[..., 2]
+        prev_hedge = obs[..., 3]
+        no_cost_delta = european_call_delta(to_numpy(moneyness),
+                                            to_numpy(expiry),
+                                            to_numpy(volatility)) * 2 - 1
+
+        features = self.extract_features(obs)
+        action = self.mu(features)
+        no_cost_delta = th.tensor(no_cost_delta, dtype=th.float64).to(action)
+
+        # TD Policy는 squash_output이 True이므로, action이 -1~1로 나와야 한다.
+        # 즉,-1<action<1 이므로 -1<no_cost_delta<1 로 정해서 0.5배 해야함.
+        lb = no_cost_delta - action[..., 0]
+        ub = no_cost_delta + action[..., 1]
+        hedge = clamp(prev_hedge, lb/2, ub/2)
+
+        return hedge
+
+    def _predict(self, observation: th.Tensor, deterministic: bool = False) -> th.Tensor:
+        return self.forward(observation)
+
+
 class CustomContinuousCritic(BaseModel):
     """
     Critic network(s) for DDPG/SAC/TD3.
@@ -95,16 +165,16 @@ class CustomContinuousCritic(BaseModel):
     """
 
     def __init__(
-        self,
-        observation_space: gym.spaces.Space,
-        action_space: gym.spaces.Space,
-        net_arch: List[int],
-        features_extractor: nn.Module,
-        features_dim: int,
-        activation_fn: Type[nn.Module] = nn.ReLU,
-        normalize_images: bool = True,
-        n_critics: int = 2,
-        share_features_extractor: bool = True,
+            self,
+            observation_space: gym.spaces.Space,
+            action_space: gym.spaces.Space,
+            net_arch: List[int],
+            features_extractor: nn.Module,
+            features_dim: int,
+            activation_fn: Type[nn.Module] = nn.ReLU,
+            normalize_images: bool = True,
+            n_critics: int = 2,
+            share_features_extractor: bool = True,
     ):
         super().__init__(
             observation_space,
@@ -144,6 +214,7 @@ class CustomContinuousCritic(BaseModel):
         q_val = self.q_networks[0](th.cat([features, th.unsqueeze(actions, -1)], dim=-1))
         return th.sum(q_val, dim=-2)
 
+
 class DoubleTD3Policy(TD3Policy):
 
     def __init__(
@@ -160,7 +231,9 @@ class DoubleTD3Policy(TD3Policy):
             optimizer_kwargs: Optional[Dict[str, Any]] = None,
             n_critics: int = 2,
             share_features_extractor: bool = True,
+            actor: str = "mlp",
     ):
+        self.actor_name = actor
         super(DoubleTD3Policy, self).__init__(observation_space,
                                               action_space,
                                               lr_schedule,
@@ -188,7 +261,8 @@ class DoubleTD3Policy(TD3Policy):
             self.critic2_target = self.make_critic(features_extractor=None)
 
         self.critic2_target.load_state_dict(self.critic2.state_dict())
-        self.critic2.optimizer = self.optimizer_class(self.critic2.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs)
+        self.critic2.optimizer = self.optimizer_class(self.critic2.parameters(), lr=lr_schedule(1),
+                                                      **self.optimizer_kwargs)
 
         self.critic2_target.set_training_mode(False)
 
@@ -196,9 +270,17 @@ class DoubleTD3Policy(TD3Policy):
         super().set_training_mode(mode)
         self.critic2.set_training_mode(mode)
 
+    def _get_actor(self):
+        if self.actor_name == 'mlp':
+            return CustomActor
+        elif self.actor_name == 'no-transaction band':
+            return NoTransactionBandActor
+        else:
+            raise ValueError(f'actor name : {self.actor_name} not found')
+
     def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> CustomActor:
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)
-        return CustomActor(**actor_kwargs).to(self.device)
+        return self._get_actor()(**actor_kwargs).to(self.device)
 
     def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> CustomContinuousCritic:
         critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)
