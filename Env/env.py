@@ -11,8 +11,8 @@ from typing import Dict, Any, List
 from Utils.prices import european_option_payoff, lookback_option_payoff
 from Utils.prices import geometric_brownian_motion, european_call_price
 
-from stable_baselines3.ddpg import DDPG
-from stable_baselines3.ddpg.policies import MlpPolicy
+# from stable_baselines3.ddpg import DDPG
+# from stable_baselines3.ddpg.policies import MlpPolicy
 
 
 class BSMarket(gym.Env):
@@ -58,7 +58,9 @@ class BSMarket(gym.Env):
 
         self.underlying_prices = None
         self.option_prices = None
-        self.hedge = None
+
+        self.hold = None
+        self.position = None
         self.delta = None
 
         self.reset()
@@ -75,9 +77,9 @@ class BSMarket(gym.Env):
 
     def reset(self, initialize="zero") -> GymObs:
         if initialize == 'zero':
-            self.hedge = np.zeros(self.n_assets)
+            self.hold = np.zeros(self.n_assets)
         elif initialize == 'std':
-            self.hedge = np.random.randn(self.n_assets)
+            self.hold = np.random.randn(self.n_assets)
 
         self.now = 0
         # (n_periods, n_assets)
@@ -105,7 +107,7 @@ class BSMarket(gym.Env):
         moneyness = self.underlying_prices[self.now][:, None] / self.strike      # (n_periods+1, n_assets)
         expiry = np.full_like(moneyness, (self.n_periods - self.now) * self.dt)
         volatility = np.full_like(moneyness, self.volatility)
-        prev_hedge = self.hedge.copy()[:, None]
+        prev_hedge = self.hold.copy()[:, None]
 
         obs = np.c_[moneyness, expiry, volatility, prev_hedge]
 
@@ -132,6 +134,10 @@ class BSMarket(gym.Env):
         return step_return
 
     def pnl_step(self, action: np.ndarray) -> GymStepReturn:
+        """
+        action for holdings
+        :param action: holdings : (0, 1)
+        """
         done, info = False, {}
 
         # action = action.flatten()
@@ -139,7 +145,7 @@ class BSMarket(gym.Env):
         now_option, option = self.option_prices[self.now:self.now+2]
 
         # transaction cost
-        cost = self.transaction_cost * np.abs(action - self.hedge) * now_underlying
+        cost = self.transaction_cost * np.abs(action - self.hold) * now_underlying
         # gain from price movement
         price_gain = action * (underlying - now_underlying)
 
@@ -152,7 +158,7 @@ class BSMarket(gym.Env):
             payoff = option - now_option
 
         self.now += 1
-        self.hedge = action
+        self.hold = action
 
         raw_reward = payoff + price_gain - cost
         reward = np.mean(raw_reward) - 2.0*np.std(raw_reward)
@@ -160,12 +166,15 @@ class BSMarket(gym.Env):
 
         return self.get_obs(), reward, done, info
 
-    def pnl_eval(self, model):
+    def pnl_eval(self, model=None):
         obs = self.reset()
         reward, done, info = 0, False, {}
         total_raw_reward = 0
         while not done:
-            action, _ = model.predict(obs, deterministic=False)
+            if model:
+                action, _ = model.predict(obs, deterministic=False)
+            else:
+                action = self.action_space.sample()
             obs, reward, done, info = self.step(action)
             total_raw_reward += info['raw_reward']
 

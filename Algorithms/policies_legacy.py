@@ -14,8 +14,6 @@ from stable_baselines3.common.type_aliases import Schedule
 from stable_baselines3.td3.policies import TD3Policy, BasePolicy
 from stable_baselines3.common.policies import BaseModel
 
-from Utils.prices import european_call_delta
-from Utils.tensors import clamp, to_numpy
 
 class CustomActor(BasePolicy):
     def __init__(
@@ -64,73 +62,6 @@ class CustomActor(BasePolicy):
         features = self.extract_features(obs)
         action = self.mu(features)
         return self.flatten(action)
-
-    def _predict(self, observation: th.Tensor, deterministic: bool = False) -> th.Tensor:
-        return self.forward(observation)
-
-class NTBActor(BasePolicy):
-    def __init__(
-        self,
-        observation_space: gym.spaces.Space,
-        action_space: gym.spaces.Space,
-        net_arch: List[int],
-        features_extractor: nn.Module,
-        features_dim: int,
-        activation_fn: Type[nn.Module] = nn.ReLU,
-        normalize_images: bool = True,
-    ):
-        super(NTBActor, self).__init__(
-            observation_space,
-            action_space,
-            features_extractor=features_extractor,
-            normalize_images=normalize_images,
-            squash_output=True,
-        )
-
-        self.net_arch = net_arch
-        self.features_dim = features_dim
-        self.activation_fn = activation_fn
-
-        # action_dim = get_action_dim(self.action_space)
-        action_dim = 2
-        actor_net = create_mlp(features_dim, action_dim, net_arch, activation_fn, squash_output=True)
-        # Deterministic action
-        actor_net.insert(0, activation_fn())
-        self.mu = nn.Sequential(*actor_net)
-        # self.flatten = nn.Flatten(-2, -1)
-
-    def _get_constructor_parameters(self) -> Dict[str, Any]:
-        data = super()._get_constructor_parameters()
-
-        data.update(
-            dict(
-                net_arch=self.net_arch,
-                features_dim=self.features_dim,
-                activation_fn=self.activation_fn,
-                features_extractor=self.features_extractor,
-            )
-        )
-        return data
-
-    def forward(self, obs: th.Tensor) -> th.Tensor:
-        features = self.extract_features(obs)
-        action = self.mu(features)
-
-        moneyness, expiry, volatility, prev_hedge = [obs[..., i] for i in range(4)]
-        delta = european_call_delta(to_numpy(moneyness),
-                                    to_numpy(expiry),
-                                    to_numpy(volatility))
-
-        delta = th.tensor(delta).to(action)
-
-        assert delta.shape == action[..., 0].shape, \
-            f'shape not match, delta: {delta.shape}, action[:,0]: {action[...,0].shape}'
-
-        lb = delta - action[..., 0] - 0.5
-        ub = delta + action[..., 1] - 0.5
-        hedge = clamp(self.scale_action(to_numpy(prev_hedge)), lb/1.5, ub/1.5).to(action)
-
-        return hedge
 
     def _predict(self, observation: th.Tensor, deterministic: bool = False) -> th.Tensor:
         return self.forward(observation)
@@ -227,9 +158,7 @@ class DoubleTD3Policy(TD3Policy):
             optimizer_kwargs: Optional[Dict[str, Any]] = None,
             n_critics: int = 2,
             share_features_extractor: bool = True,
-            actor="mlp",
     ):
-        self.actor_name = actor
         super(DoubleTD3Policy, self).__init__(observation_space,
                                               action_space,
                                               lr_schedule,
@@ -261,22 +190,13 @@ class DoubleTD3Policy(TD3Policy):
 
         self.critic2_target.set_training_mode(False)
 
-    def _get_actor(self):
-        if self.actor_name=="mlp":
-            return CustomActor
-        elif self.actor_name=="ntb":
-            return NTBActor
-        else:
-            raise ValueError(f'actor name : {self.actor_name} not found.')
-
     def set_training_mode(self, mode: bool) -> None:
         super().set_training_mode(mode)
         self.critic2.set_training_mode(mode)
 
     def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> CustomActor:
-        actor = self._get_actor()
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)
-        return actor(**actor_kwargs).to(self.device)
+        return CustomActor(**actor_kwargs).to(self.device)
 
     def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> CustomContinuousCritic:
         critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)

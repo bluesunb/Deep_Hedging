@@ -14,13 +14,14 @@ model_kwargs.update({
 })
 
 model_kwargs['policy_kwargs'].update({
-    'features_extractor_class': MarketObsExtractor
+    'features_extractor_class': MarketObsExtractor,
+    'actor': 'no-transaction band',
 })
 
-# model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
-#     'net_arch': [32],
-#     'features_out': 64
-# })
+model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
+    'features_out': 32,
+    'net_arch': [32,64,64]
+})
 
 learn_kwargs.update({
     'total_timesteps': 1500
@@ -35,6 +36,12 @@ pprint(learn_kwargs)
 _ = input()
 
 model = DDPG(**model_kwargs)
+
+import numpy as np
+
+env = model_kwargs['env']
+total_pnl = env.pnl_eval(model)
+
 model = model.learn(**learn_kwargs)
 
 config_path = learn_kwargs['eval_log_path'] + '/config.yaml'
