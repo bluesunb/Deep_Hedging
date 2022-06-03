@@ -21,7 +21,8 @@ def easydict_to_dict(edict):
 
 
 def lr_schedule(left: float):
-    return 5e-3 * (0.95 ** (30 * (1 - left)))
+    # return 5e-3 * (0.95 ** (30 * (1 - left)))
+    return 5e-3 * (0.1 ** (1 - left**2))
 
 
 def get_now(f_string='%y%m%d-%H%M'):
@@ -45,6 +46,11 @@ def save_config(path: str,
         obj = config[key]
         if not isinstance(obj, (type, str)):
             config[key] = type(obj)
+
+            log_str = f'{obj} will be save as name. '
+            if config[key].split('.')[-1]+'_kwargs' not in kwargs:
+                log_str += f"{config[key].split('.')[-1]} not in kwargs!"
+            print(log_str)
 
     return_type(model_kwargs, 'env')
     return_type(learn_kwargs, 'eval_env')

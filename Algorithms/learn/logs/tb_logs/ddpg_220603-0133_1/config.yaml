@@ -1,0 +1,68 @@
+env_kwargs:
+  cost: 0.02
+  dividend: 0.0
+  drift: 0.0
+  freq: 1
+  gen_name: gbm
+  init_price: 1.0
+  n_assets: 1000
+  n_periods: 30
+  payoff: european
+  period_unit: 365
+  reward_mode: pnl
+  risk_free_interest: 0.0
+  strike: 1.0
+  volatility: 0.2
+kwargs: {}
+learn_kwargs:
+  callback: !!python/name:Algorithms.learn.utils.callbacks.ReportCallbacks ''
+  eval_env: &id001 !!python/name:Env.env.BSMarket ''
+  eval_freq: 30
+  eval_log_path: logs/tb_logs/ddpg_220603-0133_1
+  log_interval: 30
+  n_eval_episodes: 1
+  reset_num_timesteps: true
+  tb_log_name: ddpg_220603-0133
+  total_timesteps: 2000
+model_kwargs:
+  action_noise: !!python/object:stable_baselines3.common.noise.NormalActionNoise
+    _mu: 0.0
+    _sigma: 0.1
+  batch_size: 15
+  buffer_size: 300
+  create_eval_env: false
+  device: auto
+  env: *id001
+  gamma: 0.99
+  gradient_steps: -1
+  learning_rate: !!python/name:Algorithms.learn.utils.config.lr_schedule ''
+  learning_starts: 300
+  optimize_memory_usage: false
+  policy: !!python/name:Algorithms.policies.DoubleTD3Policy ''
+  policy_kwargs:
+    activation_fn: &id002 !!python/name:torch.nn.modules.activation.ReLU ''
+    actor: mlp
+    features_extractor_class: !!python/name:Env.feature_extractor.MarketObsExtractor ''
+    features_extractor_kwargs:
+      activation_fn: *id002
+      features_in: 4
+      features_out: 2
+      net_arch:
+      - 32
+      - 64
+    n_critics: 1
+    net_arch: []
+    normalize_images: false
+    optimizer_class: !!python/name:torch.optim.adam.Adam ''
+    optimizer_kwargs: null
+    share_features_extractor: true
+  replay_buffer_class: null
+  replay_buffer_kwargs: null
+  seed: 42
+  std_coeff: 0.02
+  tau: 0.005
+  tensorboard_log: logs/tb_logs
+  train_freq: !!python/tuple
+  - 1
+  - episode
+  verbose: 1

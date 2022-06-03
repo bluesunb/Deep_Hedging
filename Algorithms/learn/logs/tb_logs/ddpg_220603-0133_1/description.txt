@@ -1,0 +1,3 @@
+DDPG only model result
+
+(test/rl_pnl.npy) 보다 약 17% 안좋은 성능을 가지는 결과만 출력되는 문제
