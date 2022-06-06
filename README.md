@@ -12,9 +12,9 @@
 
 - ~~DDPG 성능 확인~~
 
-- No-Transaction Band Net과 pnl 비교
-  - NTB의 성능이 매우 좋지 않게 나오는 문제
+- ~~No-Transaction Band Net과 pnl 비교~~
 
-
-- Delta position의 성능을 확인
-  - Env의 hedge holdings와 hedge position을 구분할 것
+- **IMPORTANT**
+  1. eval env를 따로 구현할 것. (pnl_eval, delta eval등이 자연스럽게 도출되는 step + 다른 seed)
+  2. 파일 트리 재구성할 것. stable_baseline3 와 같이 ddpg/policies.py, ddpg.py + config.py
+  3. 

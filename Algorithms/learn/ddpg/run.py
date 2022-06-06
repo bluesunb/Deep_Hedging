@@ -1,10 +1,12 @@
-from Algorithms.learn.utils import config
+from Algorithms.ddpg import config
 from Algorithms import DDPG
 from Env.feature_extractor import MarketObsExtractor
 
 from pprint import pprint
 
 env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config.yaml')
+
+actor_name = "mlp"  #@param ["mlp", "ntb"]
 
 model_kwargs.update({
     'buffer_size': 300,
@@ -15,16 +17,22 @@ model_kwargs.update({
 
 model_kwargs['policy_kwargs'].update({
     'features_extractor_class': MarketObsExtractor,
-    'actor': 'no-transaction band',
+    'actor': actor_name,
 })
 
-model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
-    'features_out': 32,
-    'net_arch': [32,64,64]
-})
+if actor_name=='ntb':
+    model_kwargs['policy_kwargs'].update({
+        'net_arch': {'pi': [16, 16],  # actor net arch
+                     'qf': [8]}  # critic net arch
+    })
+
+    model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
+        'features_out': 16,
+        'net_arch': [32, 32]
+    })
 
 learn_kwargs.update({
-    'total_timesteps': 1500
+    'total_timesteps': 2000
 })
 
 config.reconstruct_config(env_kwargs, model_kwargs, learn_kwargs)
@@ -36,11 +44,6 @@ pprint(learn_kwargs)
 _ = input()
 
 model = DDPG(**model_kwargs)
-
-import numpy as np
-
-env = model_kwargs['env']
-total_pnl = env.pnl_eval(model)
 
 model = model.learn(**learn_kwargs)
 

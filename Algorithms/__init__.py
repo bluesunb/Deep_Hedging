@@ -1,3 +1,2 @@
-from Algorithms.double_ddpg import DDPG
-from Algorithms.policies import DoubleTD3Policy
-from Algorithms.learn.utils import config, callbacks
+from Algorithms.ddpg.double_ddpg import DDPG
+from Algorithms.ddpg import config

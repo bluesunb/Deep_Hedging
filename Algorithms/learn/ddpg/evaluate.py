@@ -1,11 +1,11 @@
 import numpy as np
 
 from pprint import pprint
-from Algorithms.learn.utils import config
+from Algorithms.ddpg import config
 from Algorithms import DDPG
 
 
-best_path = 'logs/tb_logs/ddpg_220526-1356_1'
+best_path = '../logs/tb_logs/ddpg_220526-1356_1'
 env_kwargs, model_kwargs, learn_kwargs = config.load_config(best_path + '/config.yaml')
 config.reconstruct_config(env_kwargs, model_kwargs, learn_kwargs)
 

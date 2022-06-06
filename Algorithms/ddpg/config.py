@@ -7,9 +7,9 @@ from datetime import datetime
 from typing import Optional, Tuple, List
 
 from Env.env import BSMarket
-from Env.feature_extractor import MarketObsExtractor, BatchNormExtractor
-from Algorithms.learn.utils.callbacks import ReportCallbacks
-from Algorithms.policies import DoubleTD3Policy
+from Env.feature_extractor import MarketObsExtractor
+from Algorithms.ddpg.callbacks import ReportCallbacks
+from Algorithms.ddpg.policies import DoubleTD3Policy
 
 from stable_baselines3.common.noise import NormalActionNoise
 
@@ -48,8 +48,8 @@ def save_config(path: str,
             config[key] = type(obj)
 
             log_str = f'{obj} will be save as name. '
-            if config[key].split('.')[-1]+'_kwargs' not in kwargs:
-                log_str += f"{config[key].split('.')[-1]} not in kwargs!"
+            if key + '_kwargs' not in kwargs:
+                log_str += f"{key}_kwargs not in kwargs!"
             print(log_str)
 
     return_type(model_kwargs, 'env')

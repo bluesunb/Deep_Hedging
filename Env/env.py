@@ -60,7 +60,7 @@ class BSMarket(gym.Env):
         self.option_prices = None
 
         self.hold = None
-        self.position = None
+        # self.position = None
         self.delta = None
 
         self.reset()
@@ -161,6 +161,7 @@ class BSMarket(gym.Env):
         self.hold = action
 
         raw_reward = payoff + price_gain - cost
+        # reward = np.mean(raw_reward) - self.transaction_cost*np.std(raw_reward)
         reward = np.mean(raw_reward) - 2.0*np.std(raw_reward)
         info['raw_reward'] = raw_reward
 
@@ -210,3 +211,8 @@ class BSMarket(gym.Env):
             return geometric_brownian_motion
         else:
             raise ValueError(f"price generator name not found: {gen_name}")
+
+
+class BSMarketEval(BSMarket):
+    def __init__(self, **env_kwargs):
+        super(BSMarketEval, self).__init__(**env_kwargs)

@@ -19,7 +19,8 @@ class MarketObsExtractor(BaseFeaturesExtractor):
                  features_in: int,
                  features_out: int,
                  net_arch: Optional[List[int]],
-                 activation_fn: nn.Module):
+                 activation_fn: nn.Module,
+                 last_activation_fn: nn.Module = None):
 
         super(MarketObsExtractor, self).__init__(observation_space,
                                                  features_dim=features_out)
@@ -46,6 +47,9 @@ class MarketObsExtractor(BaseFeaturesExtractor):
             if modules:
                 modules.append(nn.BatchNorm1d(n_assets))
             modules.append(nn.Linear(last_layer_dim, features_out))
+
+        if last_activation_fn is not None:
+            modules.append(last_activation_fn())
 
         self.layers = nn.Sequential(*modules)
 
