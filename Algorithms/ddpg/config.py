@@ -6,7 +6,7 @@ from easydict import EasyDict
 from datetime import datetime
 from typing import Optional, Tuple, List
 
-from Env.env import BSMarket
+from Env.env import BSMarket, BSMarketEval
 from Env.feature_extractor import MarketObsExtractor
 from Env.buffers import CustomReplayBuffer
 from Algorithms.ddpg.callbacks import ReportCallbacks
@@ -17,6 +17,7 @@ from stable_baselines3.common.noise import NormalActionNoise
 MODEL_NAME = "ddpg_"
 LOG_HOME = "../logs/tb_logs"
 
+
 def easydict_to_dict(edict):
     if not isinstance(edict, (dict, EasyDict)):
         return edict
@@ -25,23 +26,24 @@ def easydict_to_dict(edict):
 
 def lr_schedule(left: float):
     # return 5e-3 * (0.95 ** (30 * (1 - left)))
-    return 5e-3 * (0.1 ** (1 - left**2))
+    return 5e-3 * (0.1 ** (1 - left ** 2))
 
 
 def get_now(f_string='%y%m%d-%H%M'):
     return datetime.now().strftime(f_string)
 
+
 def get_config_copy(*args: List[dict]):
     args_copy = [arg.copy() for arg in args]
     return args_copy
+
 
 def save_config(path: str,
                 env_kwargs_src: dict,
                 model_kwargs_src: dict,
                 learn_kwargs_src: dict,
                 **kwargs) -> None:
-
-    env_kwargs, model_kwargs, learn_kwargs =\
+    env_kwargs, model_kwargs, learn_kwargs = \
         get_config_copy(env_kwargs_src, model_kwargs_src, learn_kwargs_src)
 
     # custom env 또는 custom class는 class type + class kwargs로 따로 저장된다.
@@ -131,7 +133,7 @@ def default_config() -> dict:
                   'reward_mode': 'pnl'}
 
     env = BSMarket(**env_kwargs)
-    eval_env = BSMarket(**env_kwargs)
+    eval_env = BSMarketEval(**env_kwargs)
 
     features_extractor_kwargs = {'features_in': 4,
                                  'features_out': 2,
@@ -187,6 +189,7 @@ def default_config() -> dict:
 
     config = {'env_kwargs': env_kwargs,
               'model_kwargs': model_kwargs,
-              'learn_kwargs': learn_kwargs}
+              'learn_kwargs': learn_kwargs,
+              'kwargs': {}}
 
     return config

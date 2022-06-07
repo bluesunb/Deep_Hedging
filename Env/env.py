@@ -168,6 +168,34 @@ class BSMarket(gym.Env):
 
         return self.get_obs(), reward, done, info
 
+    @staticmethod
+    def get_payoff_fn(payoff_name):
+        if payoff_name == "european":
+            return european_option_payoff
+
+        elif payoff_name == "lookback":
+            return lookback_option_payoff
+
+        else:
+            raise ValueError(f"payoff name not found: {payoff_name}")
+
+    @staticmethod
+    def get_price_generator(gen_name):
+        if gen_name == "gbm":
+            return geometric_brownian_motion
+        else:
+            raise ValueError(f"price generator name not found: {gen_name}")
+
+
+class BSMarketEval(BSMarket):
+    def __init__(self, **env_kwargs):
+        super(BSMarketEval, self).__init__(**env_kwargs)
+
+    def step(self, action: np.ndarray, render=False) -> GymStepReturn:
+        new_obs, reward, done, info = super(BSMarketEval, self).step(action, render)
+        reward -= self.transaction_cost * (info['mean_square_reward'] - reward ** 2)
+        return new_obs, reward, done, info
+
     def pnl_eval(self, model=None):
         obs = self.reset()
         reward, done, info = 0, False, {}
@@ -194,26 +222,3 @@ class BSMarket(gym.Env):
             i += 1
 
         return total_raw_reward
-
-    @staticmethod
-    def get_payoff_fn(payoff_name):
-        if payoff_name == "european":
-            return european_option_payoff
-
-        elif payoff_name == "lookback":
-            return lookback_option_payoff
-
-        else:
-            raise ValueError(f"payoff name not found: {payoff_name}")
-
-    @staticmethod
-    def get_price_generator(gen_name):
-        if gen_name == "gbm":
-            return geometric_brownian_motion
-        else:
-            raise ValueError(f"price generator name not found: {gen_name}")
-
-
-class BSMarketEval(BSMarket):
-    def __init__(self, **env_kwargs):
-        super(BSMarketEval, self).__init__(**env_kwargs)
