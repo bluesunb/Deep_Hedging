@@ -18,25 +18,25 @@ learn_kwargs:
   callback: !!python/name:Algorithms.ddpg.callbacks.ReportCallbacks ''
   eval_env: !!python/name:Env.env.BSMarketEval ''
   eval_freq: 30
-  eval_log_path: ../logs/tb_logs/ddpg_220607-2124_1
+  eval_log_path: ../logs/tb_logs/ddpg_220607-2214_1
   log_interval: 30
   n_eval_episodes: 1
   reset_num_timesteps: true
-  tb_log_name: ddpg_220607-2124
-  total_timesteps: 1000
+  tb_log_name: ddpg_220607-2214
+  total_timesteps: 1500
 model_kwargs:
   action_noise: !!python/object:stable_baselines3.common.noise.NormalActionNoise
     _mu: 0.0
     _sigma: 0.1
   batch_size: 15
-  buffer_size: 200
+  buffer_size: 300
   create_eval_env: false
   device: auto
   env: !!python/name:Env.env.BSMarket ''
   gamma: 0.99
   gradient_steps: -1
   learning_rate: !!python/name:Algorithms.ddpg.config.lr_schedule ''
-  learning_starts: 100
+  learning_starts: 300
   optimize_memory_usage: false
   policy: !!python/name:Algorithms.ddpg.policies_legacy.DoubleDDPGPolicy ''
   policy_kwargs:
@@ -47,13 +47,13 @@ model_kwargs:
     features_extractor_kwargs:
       activation_fn: *id001
       features_in: 4
-      features_out: 32
+      features_out: 2
       last_activation_fn: *id001
       net_arch:
       - 32
       - 64
     n_critics: 1
-    net_arch: null
+    net_arch: []
     normalize_images: false
     ntb_mode: false
     optimizer_class: !!python/name:torch.optim.adam.Adam ''
@@ -62,6 +62,7 @@ model_kwargs:
   replay_buffer_class: !!python/name:Env.buffers.CustomReplayBuffer ''
   replay_buffer_kwargs: {}
   seed: 42
+  std_coeff: 0.02
   tau: 0.005
   tensorboard_log: ../logs/tb_logs
   train_freq: !!python/tuple

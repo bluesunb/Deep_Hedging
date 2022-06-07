@@ -10,7 +10,7 @@ from Env.env import BSMarket, BSMarketEval
 from Env.feature_extractor import MarketObsExtractor
 from Env.buffers import CustomReplayBuffer
 from Algorithms.ddpg.callbacks import ReportCallbacks
-from Algorithms.ddpg.policies import DoubleTD3Policy
+from Algorithms.ddpg.policies_legacy import DoubleDDPGPolicy
 
 from stable_baselines3.common.noise import NormalActionNoise
 
@@ -136,24 +136,29 @@ def default_config() -> dict:
     eval_env = BSMarketEval(**env_kwargs)
 
     features_extractor_kwargs = {'features_in': 4,
-                                 'features_out': 2,
+                                 'features_out': 32,
                                  'net_arch': [32, 64],
-                                 'activation_fn': nn.ReLU}
+                                 'activation_fn': nn.ReLU,
+                                 'last_activation_fn': nn.ReLU}
+
     optimizer_kwargs = None
 
-    policy_kwargs = {'net_arch': [],  # None으로 설정하면 deafult net arch가 설정됨
+    policy_kwargs = {'net_arch': None,
                      'activation_fn': nn.ReLU,
+                     'actor_net_kwargs': None,
+                     'critic_net_kwargs': None,
                      'features_extractor_class': MarketObsExtractor,
                      'features_extractor_kwargs': features_extractor_kwargs,
                      'normalize_images': False,
                      'optimizer_class': th.optim.Adam,
                      'optimizer_kwargs': optimizer_kwargs,
                      'n_critics': 1,
-                     'share_features_extractor': True}
+                     'share_features_extractor': True,
+                     'ntb_mode': False}
 
     replay_buffer_kwargs = {}
 
-    model_kwargs = {'policy': DoubleTD3Policy,
+    model_kwargs = {'policy': DoubleDDPGPolicy,
                     'env': env,
                     'learning_rate': lr_schedule,
                     'buffer_size': 200,

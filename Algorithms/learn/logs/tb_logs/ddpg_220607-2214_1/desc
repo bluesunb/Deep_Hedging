@@ -1,0 +1,6 @@
+fe_net : [4,32, 64, 2]
+simple actor, critic
+q_net : mean
+
+=> 더 낮은 loss들
+그러나 reward는 q_net: sum 과 동일

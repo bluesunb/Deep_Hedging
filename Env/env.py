@@ -193,7 +193,7 @@ class BSMarketEval(BSMarket):
 
     def step(self, action: np.ndarray, render=False) -> GymStepReturn:
         new_obs, reward, done, info = super(BSMarketEval, self).step(action, render)
-        reward -= self.transaction_cost * (info['mean_square_reward'] - reward ** 2)
+        reward -= self.transaction_cost * np.sqrt(info['mean_square_reward'] - reward ** 2)
         return new_obs, reward, done, info
 
     def pnl_eval(self, model=None):
