@@ -1,0 +1,3 @@
+fe net_arch, actor_net_arch의 복잡도를 증가시킴 => 더 fine tune 될 수 있도록
+==> reward 가 수렴하는 결과를 얻었지만, ddpg_only 보다 좋지는 않음
+==> actor loss, critic loss가 여전히 진동 및 각각 약한 하강세, 약한 증가세

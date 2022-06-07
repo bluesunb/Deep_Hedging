@@ -66,7 +66,9 @@ class CustomActor(BasePolicy):
 
     def ntb_forward(self, obs: th.Tensor, action: th.Tensor):
         prev_hedge = obs[..., 3]
-        action = clamp(self.scale_action(prev_hedge), action[..., 0], action[..., 1])
+        low, high = 0, 1
+        prev_hedge_scaled = 2.0 * ((prev_hedge - low) / (high - low)) - 1.0
+        action = clamp(prev_hedge_scaled, action[..., 0], action[..., 1])
         return action
 
     def forward(self, obs: th.Tensor) -> th.Tensor:

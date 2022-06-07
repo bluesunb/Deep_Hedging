@@ -7,33 +7,30 @@ from Env.feature_extractor import MarketObsExtractor
 
 from pprint import pprint
 
-default_config = config.default_config()
-env_kwargs = default_config['env_kwargs']
-model_kwargs = default_config['model_kwargs']
-learn_kwargs = default_config['learn_kwargs']
-
-# env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config.yaml')
-
-actor_name = "mlp"  #@param ["mlp", "ntb"]
+env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config.yaml')
 
 model_kwargs.update({
-    'buffer_size': 60,
-    'learning_starts': 50,
+    'buffer_size': 300,
+    'learning_starts': 300,
     'batch_size': 15,
     'std_coeff': env_kwargs['cost']
 })
 
 model_kwargs['policy_kwargs'].update({
-    'features_extractor_class': MarketObsExtractor,
-    'ntb_mode': False,
+    'net_arch': [],
+    'ntb_mode': True,
+})
+
+model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
+    'features_out': 2
 })
 
 learn_kwargs.update({
-    'total_timesteps': 100
+    'total_timesteps': 1500
 })
 
 config.reconstruct_config(env_kwargs, model_kwargs, learn_kwargs)
-config.save_config('tmp_config.yaml', env_kwargs, model_kwargs, learn_kwargs)
+# config.save_config('tmp_config.yaml', env_kwargs, model_kwargs, learn_kwargs)
 
 pprint(env_kwargs)
 pprint(model_kwargs)
