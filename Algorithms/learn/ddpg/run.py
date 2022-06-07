@@ -4,13 +4,18 @@ from Env.feature_extractor import MarketObsExtractor
 
 from pprint import pprint
 
-env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config.yaml')
+default_config = config.default_config()
+env_kwargs = default_config['env_kwargs']
+model_kwargs = default_config['model_kwargs']
+learn_kwargs = default_config['learn_kwargs']
+
+# env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config.yaml')
 
 actor_name = "mlp"  #@param ["mlp", "ntb"]
 
 model_kwargs.update({
-    'buffer_size': 300,
-    'learning_starts': 300,
+    'buffer_size': 60,
+    'learning_starts': 50,
     'batch_size': 15,
     'std_coeff': env_kwargs['cost']
 })
@@ -32,10 +37,11 @@ if actor_name=='ntb':
     })
 
 learn_kwargs.update({
-    'total_timesteps': 2000
+    'total_timesteps': 100
 })
 
 config.reconstruct_config(env_kwargs, model_kwargs, learn_kwargs)
+config.save_config('tmp_config.yaml', env_kwargs, model_kwargs, learn_kwargs)
 
 pprint(env_kwargs)
 pprint(model_kwargs)

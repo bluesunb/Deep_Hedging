@@ -162,8 +162,9 @@ class BSMarket(gym.Env):
 
         raw_reward = payoff + price_gain - cost
         # reward = np.mean(raw_reward) - self.transaction_cost*np.std(raw_reward)
-        reward = np.mean(raw_reward) - 2.0*np.std(raw_reward)
+        reward = np.mean(raw_reward)
         info['raw_reward'] = raw_reward
+        info['mean_square_reward'] = np.mean(raw_reward**2)
 
         return self.get_obs(), reward, done, info
 

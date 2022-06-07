@@ -8,11 +8,14 @@ from typing import Optional, Tuple, List
 
 from Env.env import BSMarket
 from Env.feature_extractor import MarketObsExtractor
+from Env.buffers import CustomReplayBuffer
 from Algorithms.ddpg.callbacks import ReportCallbacks
 from Algorithms.ddpg.policies import DoubleTD3Policy
 
 from stable_baselines3.common.noise import NormalActionNoise
 
+MODEL_NAME = "ddpg_"
+LOG_HOME = "../logs/tb_logs"
 
 def easydict_to_dict(edict):
     if not isinstance(edict, (dict, EasyDict)):
@@ -103,7 +106,7 @@ def reconstruct_config(env_kwargs, model_kwargs, learn_kwargs, **kwargs):
     learn_kwargs['eval_env'] = eval_env
     print(f"learn_kwargs['eval_env']: {eval_env}")
 
-    learn_kwargs['tb_log_name'] = "ddpg_" + get_now()
+    learn_kwargs['tb_log_name'] = MODEL_NAME + get_now()
     print(f"learn_kwargs['tb_log_name']: {learn_kwargs['tb_log_name']}")
 
     learn_kwargs['eval_log_path'] = \
@@ -146,7 +149,7 @@ def default_config() -> dict:
                      'n_critics': 1,
                      'share_features_extractor': True}
 
-    replay_buffer_kwargs = None
+    replay_buffer_kwargs = {}
 
     model_kwargs = {'policy': DoubleTD3Policy,
                     'env': env,
@@ -159,10 +162,10 @@ def default_config() -> dict:
                     'train_freq': (1, "episode"),
                     'gradient_steps': -1,
                     'action_noise': NormalActionNoise(mean=0.0, sigma=0.1),
-                    'replay_buffer_class': None,
+                    'replay_buffer_class': CustomReplayBuffer,
                     'replay_buffer_kwargs': replay_buffer_kwargs,
                     'optimize_memory_usage': False,
-                    'tensorboard_log': 'logs/tb_logs',
+                    'tensorboard_log': LOG_HOME,
                     'create_eval_env': False,
                     'policy_kwargs': policy_kwargs,
                     'verbose': 1,
@@ -178,8 +181,8 @@ def default_config() -> dict:
                     'eval_env': eval_env,
                     'eval_freq': 30,
                     'n_eval_episodes': 1,
-                    'tb_log_name': "ddpg_" + now,
-                    'eval_log_path': f'logs/tb_logs/ddpg_{now}_1',
+                    'tb_log_name': MODEL_NAME + now,
+                    'eval_log_path': f'{LOG_HOME}/{MODEL_NAME}{now}_1',
                     'reset_num_timesteps': True}
 
     config = {'env_kwargs': env_kwargs,
