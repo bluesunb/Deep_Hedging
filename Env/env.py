@@ -9,7 +9,7 @@ from stable_baselines3.common.type_aliases import GymObs, GymStepReturn
 from typing import Dict, Any, List
 
 from Utils.prices import european_option_payoff, lookback_option_payoff
-from Utils.prices import geometric_brownian_motion, european_call_price
+from Utils.prices import geometric_brownian_motion, european_call_price, european_call_delta
 
 # from stable_baselines3.ddpg import DDPG
 # from stable_baselines3.ddpg.policies import MlpPolicy
@@ -30,7 +30,8 @@ class BSMarket(gym.Env):
                  dividend: float = 0.0,
                  payoff: str = "european",
                  gen_name: str = "gbm",
-                 reward_mode: str = "pnl"):
+                 reward_mode: str = "pnl",
+                 payoff_coeff: float = 1.0):
 
         super(BSMarket, self).__init__()
         self.n_assets = n_assets
@@ -53,6 +54,7 @@ class BSMarket(gym.Env):
         self.payoff = self.get_payoff_fn(payoff)
         self.price_generator = self.get_price_generator(gen_name)
         self.reward_mode = reward_mode      # one of pnl, cashflow
+        self.payoff_coeff = payoff_coeff
 
         self.now = 0
 
@@ -84,7 +86,7 @@ class BSMarket(gym.Env):
         self.now = 0
         # (n_periods, n_assets)
         self.underlying_prices = self.price_generator(self.n_assets,
-                                                      self.n_periods+1,
+                                                      self.n_periods,
                                                       self.drift,
                                                       self.volatility,
                                                       self.init_price,
@@ -149,16 +151,16 @@ class BSMarket(gym.Env):
         # gain from price movement
         price_gain = action * (underlying - now_underlying)
 
+        self.now += 1
+        self.hold = action
+
         if self.now == self.n_periods - 1:  # 만약 다음 step이 maturity라면, 다음 step에는 처분밖에 못하므로
             # call option payoff를 빼주는 이유는 seller 입장에서 option 행사는 손해이기 때문
-            payoff = - self.payoff(option, self.strike) - self.transaction_cost * underlying * action
+            payoff = - self.payoff(self.option_prices[-1], self.strike) - self.transaction_cost * underlying * action
             info['msg'] = 'MATURITY'
             done = True
         else:
-            payoff = option - now_option
-
-        self.now += 1
-        self.hold = action
+            payoff = self.payoff_coeff*(option - now_option)
 
         raw_reward = payoff + price_gain - cost
         # reward = np.mean(raw_reward) - self.transaction_cost*np.std(raw_reward)
@@ -214,9 +216,28 @@ class BSMarketEval(BSMarket):
         obs = self.reset()
         reward, done, info = 0, False, {}
         total_raw_reward = 0
+        i = 0
+        while not done:
+            # action = self.delta[i].copy()
+            moneyness, expiry, volatility = [obs[..., j] for j in range(3)]
+            action = european_call_delta(moneyness, expiry, volatility)
+            assert np.all(abs(action - self.delta[i]) < 1e-5)
+            obs, reward, done, info = self.step(action)
+            total_raw_reward += info['raw_reward']
+            i += 1
+
+        return total_raw_reward
+
+    def delta_eval2(self):
+        obs = self.reset()
+        reward, done, info = 0, False, {}
+        total_raw_reward = 0
         i = 1
         while not done:
             action = self.delta[i].copy()
+            # moneyness, expiry, volatility = [obs[..., j] for j in range(3)]
+            # action = european_call_delta(moneyness, expiry, volatility)
+            # assert np.all(abs(action - self.delta[i]) < 1e-5)
             obs, reward, done, info = self.step(action)
             total_raw_reward += info['raw_reward']
             i += 1

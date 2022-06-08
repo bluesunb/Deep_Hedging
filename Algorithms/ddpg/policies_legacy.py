@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, Type, Union, Tuple
 
 import gym
 import torch as th
+import torch.nn.functional as F
 from torch import nn
 
 from stable_baselines3.common.preprocessing import get_action_dim
@@ -16,7 +17,6 @@ from stable_baselines3.common.policies import BaseModel
 
 from Utils.prices import european_call_delta
 from Utils.tensors import clamp, to_numpy, create_module
-
 
 class CustomActor(BasePolicy):
     def __init__(
@@ -46,7 +46,7 @@ class CustomActor(BasePolicy):
 
         action_dim = 2 if ntb_mode else 1
         actor_net = create_module(features_dim, action_dim,
-                                  net_arch, activation_fn, squash_output=True, net_kwargs=net_kwargs)
+                                  net_arch, activation_fn, squash_output=(not ntb_mode), net_kwargs=net_kwargs)
         self.mu = nn.Sequential(*actor_net)
         self.flatten = nn.Flatten(-2)  # due to action_dim = 1 so last dim of mu(action) will 1
 
@@ -65,10 +65,20 @@ class CustomActor(BasePolicy):
         return data
 
     def ntb_forward(self, obs: th.Tensor, action: th.Tensor):
-        prev_hedge = obs[..., 3]
-        low, high = 0, 1
-        prev_hedge_scaled = 2.0 * ((prev_hedge - low) / (high - low)) - 1.0
-        action = clamp(prev_hedge_scaled, action[..., 0], action[..., 1])
+        # prev_hedge = obs[..., 3]
+
+        moneyness, expiry, volatility, prev_hedge = [obs[..., i] for i in range(4)]
+        delta = european_call_delta(to_numpy(moneyness),
+                                    to_numpy(expiry),
+                                    to_numpy(volatility))
+        delta = th.tensor(delta).to(action)
+
+        scale = lambda x, low, high: 2.0 * ((x - low) / (high - low)) - 1.0
+
+        lb = th.clamp(delta - th.tanh(F.leaky_relu(action[..., 0])), -1., 1.,)
+        ub = th.clamp(delta + th.tanh(F.leaky_relu(action[..., 1])), -1., 1.,)
+        prev_hedge_scaled = scale(prev_hedge, 0, 1)
+        action = clamp(prev_hedge_scaled, lb, ub)
         return action
 
     def forward(self, obs: th.Tensor) -> th.Tensor:

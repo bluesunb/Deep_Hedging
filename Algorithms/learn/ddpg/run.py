@@ -2,12 +2,13 @@ import torch as th
 import torch.nn as nn
 
 from Algorithms.ddpg import config
-from Algorithms import DDPG
-from Env.feature_extractor import MarketObsExtractor
+from Algorithms.ddpg import DDPG
 
 from pprint import pprint
 
 env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config.yaml')
+
+ntb_mode = True
 
 model_kwargs.update({
     'buffer_size': 300,
@@ -17,17 +18,39 @@ model_kwargs.update({
 })
 
 model_kwargs['policy_kwargs'].update({
-    'net_arch': [],
-    'ntb_mode': True,
-})
-
-model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
-    'features_out': 2
+    'ntb_mode': ntb_mode
 })
 
 learn_kwargs.update({
     'total_timesteps': 1500
 })
+
+if ntb_mode:
+    actor_net_kwargs = {'bn_kwargs': {'num_features': env_kwargs['n_assets']}}
+    critic_net_kwargs = {'bn_kwargs': {'num_features': env_kwargs['n_assets']}}
+
+    model_kwargs['policy_kwargs'].update({
+        'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 64, 32],
+                     'qf': [(nn.BatchNorm1d, 'bn'), 2]},
+        'actor_net_kwargs': actor_net_kwargs,
+        'critic_net_kwargs': critic_net_kwargs,
+        'env': model_kwargs['env']
+    })
+
+    model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
+        'features_out': 64,
+        'net_arch': [32]
+    })
+
+else:
+    model_kwargs['policy_kwargs'].update({
+        'net_arch': [],
+    })
+
+    model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
+        'features_out': 2,
+        'net_arch': [32, 64]
+    })
 
 config.reconstruct_config(env_kwargs, model_kwargs, learn_kwargs)
 # config.save_config('tmp_config.yaml', env_kwargs, model_kwargs, learn_kwargs)

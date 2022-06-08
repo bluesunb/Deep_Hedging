@@ -11,14 +11,15 @@ def geometric_brownian_motion(n_paths: int, n_periods: int,
     z[0, :] = 0.0
 
     noise_term = volatility * np.sqrt(dt) * z.cumsum(axis=0)
-    t = np.arange(0, n_periods*dt, dt).reshape(-1, 1) * dt
+    t = np.arange(0, n_periods*dt, dt).reshape(-1, 1)
     return init_price*np.exp((drift - 0.5 * volatility ** 2) * t + noise_term)
 
 
 def european_option_d1(moneyness: np.ndarray,
                        expiry: np.ndarray,
                        volatility: float,
-                       risk_free_interest: float=0.0) -> np.ndarray:
+                       risk_free_interest: float=0.0,
+                       dividend: float=0.0) -> np.ndarray:
     """
     Black-Scholes Model d1
     :param moneyness:
@@ -28,7 +29,7 @@ def european_option_d1(moneyness: np.ndarray,
     """
 
     expiry = expiry + 1e-6
-    a = np.log(moneyness) + (risk_free_interest * 0.5 * volatility ** 2) * expiry
+    a = np.log(moneyness) + (risk_free_interest - dividend + 0.5 * volatility ** 2) * expiry
     b = volatility * np.sqrt(expiry)
     return a / b
 
@@ -71,7 +72,7 @@ def european_call_delta(moneyness: np.ndarray,
 
 
 def european_option_payoff(prices: np.ndarray, strike: float = 1.0) -> np.ndarray:
-    return np.clip(prices[-1] - strike, 0.0, np.inf)
+    return np.clip(prices - strike, 0.0, np.inf)
 
 
 def lookback_option_payoff(prices: np.ndarray, strike: float = 1.0) -> np.ndarray:
