@@ -3,21 +3,22 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import gym
 import torch as th
 from torch import nn
+from torch.nn import functional as F
 
 from stable_baselines3.common.distributions import SquashedDiagGaussianDistribution, StateDependentNoiseDistribution
-from stable_baselines3.common.policies import BasePolicy, ContinuousCritic, create_sde_features_extractor, register_policy
+from stable_baselines3.common.policies import BasePolicy, create_sde_features_extractor
 from stable_baselines3.common.policies import BaseModel
 
 from stable_baselines3.common.preprocessing import get_action_dim
 from stable_baselines3.common.torch_layers import (
     BaseFeaturesExtractor,
-    CombinedExtractor,
     FlattenExtractor,
-    NatureCNN,
-    create_mlp,
     get_actor_critic_arch,
 )
 from stable_baselines3.common.type_aliases import Schedule
+
+from Utils.prices import european_call_delta
+from Utils.tensors import create_module, clamp, to_numpy
 
 # CAP the standard deviation of the actor
 LOG_STD_MAX = 2
@@ -65,6 +66,8 @@ class CustomActor(BasePolicy):
         use_expln: bool = False,
         clip_mean: float = 2.0,
         normalize_images: bool = True,
+            net_kwargs: Optional[Dict[str, Any]] = None,
+        ntb_mode: bool = False,
     ):
         super(CustomActor, self).__init__(
             observation_space,
@@ -86,12 +89,15 @@ class CustomActor(BasePolicy):
         self.use_expln = use_expln
         self.full_std = full_std
         self.clip_mean = clip_mean
+        self.ntb_mode = ntb_mode
 
-        # action_dim = get_action_dim(self.action_space)
         action_dim = 1
-        latent_pi_net = create_mlp(features_dim, -1, net_arch, activation_fn)
+        mu_action_dim = 2 if ntb_mode else 1
+        flatten_action_dim = get_action_dim(self.action_space)
+        # latent_pi_net = create_mlp(features_dim, -1, net_arch, activation_fn)
+        latent_pi_net = create_module(features_dim, -1, net_arch, activation_fn, net_kwargs=net_kwargs)
         self.latent_pi = nn.Sequential(*latent_pi_net)
-        last_layer_dim = net_arch[-1] if len(net_arch) > 0 else features_dim
+        last_layer_dim = [dim for dim in net_arch if isinstance(dim, int)][-1] if len(net_arch) > 0 else features_dim
 
         if self.use_sde:
             latent_sde_dim = last_layer_dim
@@ -112,13 +118,14 @@ class CustomActor(BasePolicy):
             if clip_mean > 0.0:
                 self.mu = nn.Sequential(self.mu, nn.Hardtanh(min_val=-clip_mean, max_val=clip_mean))
         else:
-            self.action_dist = SquashedDiagGaussianDistribution(action_dim)
-            self.mu = nn.Sequential(nn.Linear(last_layer_dim, action_dim),
-                                    nn.Flatten(-2, -1))
+            self.action_dist = SquashedDiagGaussianDistribution(flatten_action_dim)
+            self.mu = nn.Sequential(nn.Linear(last_layer_dim, mu_action_dim))
             # self.mu = nn.Linear(last_layer_dim, action_dim)
-            self.log_std = nn.Sequential(nn.Linear(last_layer_dim, action_dim),
-                                         nn.Flatten(-2, -1))
+            self.log_std = nn.Sequential(nn.Linear(last_layer_dim, 1))
             # self.log_std = nn.Linear(last_layer_dim, action_dim)
+
+        self.flatten = nn.Flatten(-2)
+        self.tanh = nn.Tanh()
 
     def _get_constructor_parameters(self) -> Dict[str, Any]:
         data = super()._get_constructor_parameters()
@@ -175,13 +182,29 @@ class CustomActor(BasePolicy):
         latent_pi = self.latent_pi(features)
         mean_actions = self.mu(latent_pi)
 
+        if self.ntb_mode:
+
+            moneyness, expiry, volatility, prev_hedge = [obs[..., i] for i in range(self.observation_space.shape[-1])]
+            delta = european_call_delta(to_numpy(moneyness),
+                                        to_numpy(expiry),
+                                        to_numpy(volatility))
+            delta = th.tensor(delta).to(mean_actions)
+
+            lb = th.clamp(delta - th.tanh(F.leaky_relu(mean_actions[..., 0])), -1., 1.)
+            ub = th.clamp(delta + th.tanh(F.leaky_relu(mean_actions[..., 1])), -1., 1.)
+            scale = lambda x, low, high: 2.0 * ((x - low) / (high - low)) - 1.0
+            prev_hedge_scaled = scale(prev_hedge, 0, 1)
+            mean_actions = clamp(prev_hedge_scaled, lb, ub)
+        else:
+            mean_actions = self.flatten(self.tanh(mean_actions))
+
         if self.use_sde:
             latent_sde = latent_pi
             if self.sde_features_extractor is not None:
                 latent_sde = self.sde_features_extractor(features)
             return mean_actions, self.log_std, dict(latent_sde=latent_sde)
         # Unstructured exploration (Original implementation)
-        log_std = self.log_std(latent_pi)
+        log_std = self.flatten(self.log_std(latent_pi))
         # Original Implementation to cap the standard deviation
         log_std = th.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX)
         return mean_actions, log_std, {}
@@ -235,6 +258,7 @@ class CustomContinuousCritic(BaseModel):
         normalize_images: bool = True,
         n_critics: int = 2,
         share_features_extractor: bool = True,
+        net_kwargs: Optional[Dict[str, Any]] = None
     ):
         super().__init__(
             observation_space,
@@ -249,8 +273,10 @@ class CustomContinuousCritic(BaseModel):
         self.share_features_extractor = share_features_extractor
         self.n_critics = n_critics
         self.q_networks = []
+
         for idx in range(n_critics):
-            q_net = create_mlp(features_dim + action_dim, 1, net_arch, activation_fn)
+            q_net = create_module(features_dim + action_dim, 1,
+                                  net_arch, activation_fn, net_kwargs=net_kwargs)
             q_net = nn.Sequential(*q_net)
             self.add_module(f"qf{idx}", q_net)
             self.q_networks.append(q_net)
@@ -261,7 +287,7 @@ class CustomContinuousCritic(BaseModel):
         with th.set_grad_enabled(not self.share_features_extractor):
             features = self.extract_features(obs)
         qvalue_input = th.cat([features, th.unsqueeze(actions, -1)], dim=-1)
-        return tuple(th.sum(q_net(qvalue_input), dim=-2) for q_net in self.q_networks)
+        return tuple(th.mean(q_net(qvalue_input), dim=-2) for q_net in self.q_networks)
 
     def q1_forward(self, obs: th.Tensor, actions: th.Tensor) -> th.Tensor:
         """
@@ -272,7 +298,7 @@ class CustomContinuousCritic(BaseModel):
         with th.no_grad():
             features = self.extract_features(obs)
         q_val = self.q_networks[0](th.cat([features, th.unsqueeze(actions, -1)], dim=-1))
-        return th.sum(q_val, dim=-2)
+        return th.mean(q_val, dim=-2)
 
 
 class SACPolicy(BasePolicy):
@@ -314,6 +340,8 @@ class SACPolicy(BasePolicy):
         lr_schedule: Schedule,
         net_arch: Optional[Union[List[int], Dict[str, List[int]]]] = None,
         activation_fn: Type[nn.Module] = nn.ReLU,
+        actor_net_kwargs: Optional[Dict[str, Any]] = None,
+        critic_net_kwargs: Optional[Dict[str, Any]] = None,
         use_sde: bool = False,
         log_std_init: float = -3,
         sde_net_arch: Optional[List[int]] = None,
@@ -326,6 +354,7 @@ class SACPolicy(BasePolicy):
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
         n_critics: int = 2,
         share_features_extractor: bool = True,
+        ntb_mode: bool = False,
     ):
         super(SACPolicy, self).__init__(
             observation_space,
@@ -338,19 +367,23 @@ class SACPolicy(BasePolicy):
         )
 
         if net_arch is None:
-            if features_extractor_class == NatureCNN:
-                net_arch = []
-            else:
-                net_arch = [256, 256]
+            net_arch = [(nn.BatchNorm1d, 'bn'), 16]
+            actor_net_kwargs = {'bn_kwargs': {'num_features': get_action_dim(action_space)}}
+            critic_net_kwargs = actor_net_kwargs.copy()
 
         actor_arch, critic_arch = get_actor_critic_arch(net_arch)
 
         self.net_arch = net_arch
         self.activation_fn = activation_fn
+        self.actor_net_kwargs = actor_net_kwargs
+        self.critic_net_kwargs = critic_net_kwargs
+        self.ntb_mode = ntb_mode
+
         self.net_args = {
             "observation_space": self.observation_space,
             "action_space": self.action_space,
             "net_arch": actor_arch,
+            "net_kwargs": actor_net_kwargs,
             "activation_fn": self.activation_fn,
             "normalize_images": normalize_images,
         }
@@ -368,12 +401,14 @@ class SACPolicy(BasePolicy):
             {
                 "n_critics": n_critics,
                 "net_arch": critic_arch,
+                "net_kwargs": critic_net_kwargs,
                 "share_features_extractor": share_features_extractor,
             }
         )
 
         self.actor, self.actor_target = None, None
         self.critic, self.critic_target = None, None
+        self.critic2, self.critic2_target = None, None
         self.share_features_extractor = share_features_extractor
 
         self._build(lr_schedule)
@@ -384,23 +419,31 @@ class SACPolicy(BasePolicy):
 
         if self.share_features_extractor:
             self.critic = self.make_critic(features_extractor=self.actor.features_extractor)
+            self.critic2 = self.make_critic(features_extractor=self.actor.features_extractor)
             # Do not optimize the shared features extractor with the critic loss
             # otherwise, there are gradient computation issues
             critic_parameters = [param for name, param in self.critic.named_parameters() if "features_extractor" not in name]
+            critic2_parameters = [param for name, param in self.critic2.named_parameters() if "features_extractor" not in name]
         else:
             # Create a separate features extractor for the critic
             # this requires more memory and computation
             self.critic = self.make_critic(features_extractor=None)
+            self.critic2 = self.make_critic(features_extractor=None)
             critic_parameters = self.critic.parameters()
+            critic2_parameters = self.critic2.parameters()
 
         # Critic target should not share the features extractor with critic
         self.critic_target = self.make_critic(features_extractor=None)
         self.critic_target.load_state_dict(self.critic.state_dict())
+        self.critic2_target = self.make_critic(features_extractor=None)
+        self.critic2_target.load_state_dict(self.critic2.state_dict())
 
         self.critic.optimizer = self.optimizer_class(critic_parameters, lr=lr_schedule(1), **self.optimizer_kwargs)
+        self.critic2.optimizer = self.optimizer_class(critic2_parameters, lr=lr_schedule(1), **self.optimizer_kwargs)
 
         # Target networks should always be in eval mode
         self.critic_target.set_training_mode(False)
+        self.critic2_target.set_training_mode(False)
 
     def _get_constructor_parameters(self) -> Dict[str, Any]:
         data = super()._get_constructor_parameters()
@@ -409,6 +452,8 @@ class SACPolicy(BasePolicy):
             dict(
                 net_arch=self.net_arch,
                 activation_fn=self.net_args["activation_fn"],
+                actor_net_kwargs = self.actor_net_kwargs,
+                critic_net_kwargs = self.critic_net_kwargs,
                 use_sde=self.actor_kwargs["use_sde"],
                 log_std_init=self.actor_kwargs["log_std_init"],
                 sde_net_arch=self.actor_kwargs["sde_net_arch"],
@@ -420,6 +465,7 @@ class SACPolicy(BasePolicy):
                 optimizer_kwargs=self.optimizer_kwargs,
                 features_extractor_class=self.features_extractor_class,
                 features_extractor_kwargs=self.features_extractor_kwargs,
+                ntb_mode=self.ntb_mode,
             )
         )
         return data
@@ -434,7 +480,7 @@ class SACPolicy(BasePolicy):
 
     def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> CustomActor:
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)
-        return CustomActor(**actor_kwargs).to(self.device)
+        return CustomActor(**actor_kwargs, ntb_mode=self.ntb_mode).to(self.device)
 
     def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> CustomContinuousCritic:
         critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)
@@ -456,78 +502,5 @@ class SACPolicy(BasePolicy):
         """
         self.actor.set_training_mode(mode)
         self.critic.set_training_mode(mode)
+        self.critic2.set_training_mode(mode)
         self.training = mode
-
-
-MlpPolicy = SACPolicy
-
-
-class CnnPolicy(SACPolicy):
-    """
-    Policy class (with both actor and critic) for SAC.
-
-    :param observation_space: Observation space
-    :param action_space: Action space
-    :param lr_schedule: Learning rate schedule (could be constant)
-    :param net_arch: The specification of the policy and value networks.
-    :param activation_fn: Activation function
-    :param use_sde: Whether to use State Dependent Exploration or not
-    :param log_std_init: Initial value for the log standard deviation
-    :param sde_net_arch: Network architecture for extracting features
-        when using gSDE. If None, the latent features from the policy will be used.
-        Pass an empty list to use the states as features.
-    :param use_expln: Use ``expln()`` function instead of ``exp()`` when using gSDE to ensure
-        a positive standard deviation (cf paper). It allows to keep variance
-        above zero and prevent it from growing too fast. In practice, ``exp()`` is usually enough.
-    :param clip_mean: Clip the mean output when using gSDE to avoid numerical instability.
-    :param features_extractor_class: Features extractor to use.
-    :param normalize_images: Whether to normalize images or not,
-         dividing by 255.0 (True by default)
-    :param optimizer_class: The optimizer to use,
-        ``th.optim.Adam`` by default
-    :param optimizer_kwargs: Additional keyword arguments,
-        excluding the learning rate, to pass to the optimizer
-    :param n_critics: Number of critic networks to create.
-    :param share_features_extractor: Whether to share or not the features extractor
-        between the actor and the critic (this saves computation time)
-    """
-
-    def __init__(
-        self,
-        observation_space: gym.spaces.Space,
-        action_space: gym.spaces.Space,
-        lr_schedule: Schedule,
-        net_arch: Optional[Union[List[int], Dict[str, List[int]]]] = None,
-        activation_fn: Type[nn.Module] = nn.ReLU,
-        use_sde: bool = False,
-        log_std_init: float = -3,
-        sde_net_arch: Optional[List[int]] = None,
-        use_expln: bool = False,
-        clip_mean: float = 2.0,
-        features_extractor_class: Type[BaseFeaturesExtractor] = NatureCNN,
-        features_extractor_kwargs: Optional[Dict[str, Any]] = None,
-        normalize_images: bool = True,
-        optimizer_class: Type[th.optim.Optimizer] = th.optim.Adam,
-        optimizer_kwargs: Optional[Dict[str, Any]] = None,
-        n_critics: int = 2,
-        share_features_extractor: bool = True,
-    ):
-        super(CnnPolicy, self).__init__(
-            observation_space,
-            action_space,
-            lr_schedule,
-            net_arch,
-            activation_fn,
-            use_sde,
-            log_std_init,
-            sde_net_arch,
-            use_expln,
-            clip_mean,
-            features_extractor_class,
-            features_extractor_kwargs,
-            normalize_images,
-            optimizer_class,
-            optimizer_kwargs,
-            n_critics,
-            share_features_extractor,
-        )

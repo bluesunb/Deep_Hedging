@@ -1,46 +1,61 @@
-from pprint import pprint
+import torch as th
+import torch.nn as nn
+
 from Algorithms.sac import config
-from Env.feature_extractor import MarketObsExtractor
+from Algorithms.sac import SAC
 
 from pprint import pprint
 
-from stable_baselines3.sac import SAC
+env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config.yaml')
 
-default_config = config.default_config()
-env_kwargs = default_config['env_kwargs']
-model_kwargs = default_config['model_kwargs']
-learn_kwargs = default_config['learn_kwargs']
-
-actor_name = "mlp"  #@param ["mlp", "ntb"]
+ntb_mode = True
 
 model_kwargs.update({
     'buffer_size': 300,
     'learning_starts': 300,
     'batch_size': 15,
-    # 'std_coeff': env_kwargs['cost']
+    'std_coeff': env_kwargs['cost']
 })
 
 model_kwargs['policy_kwargs'].update({
-    'features_extractor_class': MarketObsExtractor,
-    # 'actor': actor_name,
+    'ntb_mode': ntb_mode
 })
-
-# if actor_name=='ntb':
-#     model_kwargs['policy_kwargs'].update({
-#         'net_arch': {'pi': [16, 16],  # actor net arch
-#                      'qf': [8]}  # critic net arch
-#     })
-#
-#     model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
-#         'features_out': 16,
-#         'net_arch': [32, 32]
-#     })
 
 learn_kwargs.update({
     'total_timesteps': 1500
 })
 
+actor_net_kwargs = {'bn_kwargs': {'num_features': env_kwargs['n_assets']}}
+critic_net_kwargs = {'bn_kwargs': {'num_features': env_kwargs['n_assets']}}
+
+if ntb_mode:
+
+    model_kwargs['policy_kwargs'].update({
+        'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 32, 32],
+                     'qf': [(nn.BatchNorm1d, 'bn'), 2]},
+        'actor_net_kwargs': actor_net_kwargs,
+        'critic_net_kwargs': critic_net_kwargs,
+    })
+
+    model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
+        'features_out': 64,
+        'net_arch': [32]
+    })
+
+else:
+    model_kwargs['policy_kwargs'].update({
+        'net_arch': [(nn.BatchNorm1d, 'bn'), 2],
+        'actor_net_kwargs': actor_net_kwargs,
+        'critic_net_kwargs': critic_net_kwargs,
+    })
+
+    model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
+        'features_out': 64,
+        'net_arch': [32]
+    })
+
 config.reconstruct_config(env_kwargs, model_kwargs, learn_kwargs)
+# config.save_config('tmp_config.yaml', env_kwargs, model_kwargs, learn_kwargs)
 
 pprint(env_kwargs)
 pprint(model_kwargs)
@@ -49,6 +64,10 @@ pprint(learn_kwargs)
 _ = input()
 
 model = SAC(**model_kwargs)
+
+print(model.policy)
+
+_ = input()
 
 model = model.learn(**learn_kwargs)
 

@@ -30,11 +30,10 @@ if ntb_mode:
     critic_net_kwargs = {'bn_kwargs': {'num_features': env_kwargs['n_assets']}}
 
     model_kwargs['policy_kwargs'].update({
-        'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 64, 32],
+        'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 32, 32],
                      'qf': [(nn.BatchNorm1d, 'bn'), 2]},
         'actor_net_kwargs': actor_net_kwargs,
         'critic_net_kwargs': critic_net_kwargs,
-        'env': model_kwargs['env']
     })
 
     model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({

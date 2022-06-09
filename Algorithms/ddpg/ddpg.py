@@ -190,7 +190,8 @@ class DDPG(TD3):
                                                           self.actor(replay_data.observations)).mean()
                 std_cost_loss = th.abs(
                     self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations)) -
-                    self.critic.q1_forward(replay_data.observations, self.actor(replay_data.observations)) ** 2
+                    # self.critic.q1_forward(replay_data.observations, self.actor(replay_data.observations)) ** 2
+                    mean_cost_loss**2
                 )
                 std_cost_loss = std_cost_loss.mean().sqrt() * self.std_coeff
 

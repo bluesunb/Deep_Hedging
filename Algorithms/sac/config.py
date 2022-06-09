@@ -6,7 +6,8 @@ from easydict import EasyDict
 from datetime import datetime
 from typing import Optional, Tuple, List
 
-from Env.env import BSMarket
+from Env.buffers import CustomReplayBuffer
+from Env.env import BSMarket, BSMarketEval
 from Env.feature_extractor import MarketObsExtractor
 from Algorithms.sac.callbacks import ReportCallbacks
 from Algorithms.sac.policies import SACPolicy
@@ -14,6 +15,8 @@ from Algorithms.sac.policies import SACPolicy
 from stable_baselines3.common.noise import NormalActionNoise
 
 MODEL_NAME = "sac_"
+LOG_HOME = "../logs/tb_logs"
+
 
 def easydict_to_dict(edict):
     if not isinstance(edict, (dict, EasyDict)):
@@ -129,31 +132,36 @@ def default_config() -> dict:
                   'reward_mode': 'pnl'}
 
     env = BSMarket(**env_kwargs)
-    eval_env = BSMarket(**env_kwargs)
+    eval_env = BSMarketEval(**env_kwargs)
 
     features_extractor_kwargs = {'features_in': 4,
                                  'features_out': 32,
-                                 'net_arch': [32],
+                                 'net_arch': [32, 64],
                                  'activation_fn': nn.ReLU,
                                  'last_activation_fn': nn.ReLU}
     optimizer_kwargs = None
 
-    policy_kwargs = {'net_arch': [16],  # None으로 설정하면 deafult net arch가 설정됨
+    policy_kwargs = {'net_arch': None,  # None으로 설정하면 deafult net arch가 설정됨
                      'activation_fn': nn.ReLU,
+                     'actor_net_kwargs': None,
+                     'critic_net_kwargs': None,
+
                      'use_sde': False,      # gSDE
                      'log_std_init': -3,    # gSDE
                      'sde_net_arch': None,  # gSDE
                      'use_expln': False,    # gSDE
                      'clip_mean': 2.0,      # gSDE
+
                      'features_extractor_class': MarketObsExtractor,
                      'features_extractor_kwargs': features_extractor_kwargs,
                      'normalize_images': False,
                      'optimizer_class': th.optim.Adam,
                      'optimizer_kwargs': optimizer_kwargs,
                      'n_critics': 1,
-                     'share_features_extractor': True}
+                     'share_features_extractor': True,
+                     'ntb_mode': False}
 
-    replay_buffer_kwargs = None
+    replay_buffer_kwargs = {}
 
     model_kwargs = {'policy': SACPolicy,
                     'env': env,
@@ -166,16 +174,19 @@ def default_config() -> dict:
                     'train_freq': (1, "episode"),
                     'gradient_steps': -1,
                     'action_noise': None,
-                    'replay_buffer_class': None,
+                    'replay_buffer_class': CustomReplayBuffer,
                     'replay_buffer_kwargs': replay_buffer_kwargs,
                     'optimize_memory_usage': False,
-                    'ent_coef': "auto",
                     'target_update_interval': 1,
-                    'target_entropy': "auto",
-                    'use_sde': False,
-                    'sde_sample_freq': -1,
-                    'use_sde_at_warmup': False,
-                    'tensorboard_log': 'logs/tb_logs',
+
+                    'ent_coef': "auto",             # entropy
+                    'target_entropy': "auto",       # entropy
+
+                    'use_sde': False,               # gSDE
+                    'sde_sample_freq': -1,          # gSDE
+                    'use_sde_at_warmup': False,     # gSDE
+
+                    'tensorboard_log': LOG_HOME,
                     'create_eval_env': False,
                     'policy_kwargs': policy_kwargs,
                     'verbose': 1,
@@ -192,11 +203,12 @@ def default_config() -> dict:
                     'eval_freq': 30,
                     'n_eval_episodes': 1,
                     'tb_log_name': MODEL_NAME + now,
-                    'eval_log_path': f'learn/logs/tb_logs/{MODEL_NAME}{now}_1',
+                    'eval_log_path': f'{LOG_HOME}/{MODEL_NAME}{now}_1',
                     'reset_num_timesteps': True}
 
     config = {'env_kwargs': env_kwargs,
               'model_kwargs': model_kwargs,
-              'learn_kwargs': learn_kwargs}
+              'learn_kwargs': learn_kwargs,
+              'kwargs': {}}
 
     return config

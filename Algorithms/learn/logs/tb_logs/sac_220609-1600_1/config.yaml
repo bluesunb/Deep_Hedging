@@ -18,11 +18,11 @@ learn_kwargs:
   callback: !!python/name:Algorithms.sac.callbacks.ReportCallbacks ''
   eval_env: &id001 !!python/name:Env.env.BSMarket ''
   eval_freq: 30
-  eval_log_path: logs/tb_logs/sac_220606-1815_1
+  eval_log_path: ../logs/tb_logs/sac_220609-1600_1
   log_interval: 30
   n_eval_episodes: 1
   reset_num_timesteps: true
-  tb_log_name: sac_220606-1815
+  tb_log_name: sac_220609-1600
   total_timesteps: 1500
 model_kwargs:
   action_noise: null
@@ -40,34 +40,45 @@ model_kwargs:
   policy: !!python/name:Algorithms.sac.policies.SACPolicy ''
   policy_kwargs:
     activation_fn: &id002 !!python/name:torch.nn.modules.activation.ReLU ''
+    actor_net_kwargs:
+      bn_kwargs:
+        num_features: 1000
     clip_mean: 2.0
+    critic_net_kwargs:
+      bn_kwargs:
+        num_features: 1000
     features_extractor_class: !!python/name:Env.feature_extractor.MarketObsExtractor ''
     features_extractor_kwargs:
       activation_fn: *id002
       features_in: 4
-      features_out: 32
+      features_out: 64
       last_activation_fn: *id002
       net_arch:
       - 32
     log_std_init: -3
     n_critics: 1
     net_arch:
-    - 16
+    - !!python/tuple
+      - !!python/name:torch.nn.modules.batchnorm.BatchNorm1d ''
+      - bn
+    - 2
     normalize_images: false
+    ntb_mode: false
     optimizer_class: !!python/name:torch.optim.adam.Adam ''
     optimizer_kwargs: null
     sde_net_arch: null
     share_features_extractor: true
     use_expln: false
     use_sde: false
-  replay_buffer_class: null
-  replay_buffer_kwargs: null
+  replay_buffer_class: !!python/name:Env.buffers.CustomReplayBuffer ''
+  replay_buffer_kwargs: {}
   sde_sample_freq: -1
   seed: 42
+  std_coeff: 0.02
   target_entropy: auto
   target_update_interval: 1
   tau: 0.005
-  tensorboard_log: logs/tb_logs
+  tensorboard_log: ../logs/tb_logs
   train_freq: !!python/tuple
   - 1
   - episode
