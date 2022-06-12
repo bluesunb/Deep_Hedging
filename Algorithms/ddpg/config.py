@@ -10,7 +10,7 @@ from Env.env import BSMarket, BSMarketEval
 from Env.feature_extractor import MarketObsExtractor
 from Env.buffers import CustomReplayBuffer
 from Algorithms.ddpg.callbacks import ReportCallbacks
-from Algorithms.ddpg.policies_legacy import DoubleDDPGPolicy
+from Algorithms.ddpg.policies import DoubleDDPGPolicy
 
 from stable_baselines3.common.noise import NormalActionNoise
 

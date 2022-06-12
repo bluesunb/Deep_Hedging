@@ -13,6 +13,7 @@ env_kwargs:
   risk_free_interest: 0.0
   strike: 1.0
   volatility: 0.2
+  payoff_coeff: 1.0
 kwargs: {}
 learn_kwargs:
   callback: !!python/name:Algorithms.ddpg.callbacks.ReportCallbacks ''
@@ -38,7 +39,7 @@ model_kwargs:
   learning_rate: !!python/name:Algorithms.ddpg.config.lr_schedule ''
   learning_starts: 100
   optimize_memory_usage: false
-  policy: !!python/name:Algorithms.ddpg.policies_legacy.DoubleDDPGPolicy ''
+  policy: !!python/name:Algorithms.ddpg.policies.DoubleDDPGPolicy ''
   policy_kwargs:
     activation_fn: &id001 !!python/name:torch.nn.modules.activation.ReLU ''
     actor_net_kwargs: null

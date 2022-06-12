@@ -1,12 +1,20 @@
 import numpy as np
 import torch as th
 import torch.nn as nn
+import random
 
 from typing import Type, List, Optional, Dict, Any
 
+def set_seed(seed=42):
+    th.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
 
 def to_numpy(tensor: th.Tensor) -> np.array:
     return tensor.cpu().detach().numpy()
+
+def to_tensor(numpy: np.ndarray) -> th.Tensor:
+    return th.from_numpy(numpy).to(th.float32)
 
 
 def clamp(x, lb, ub) -> th.Tensor:
@@ -24,10 +32,11 @@ def clamp(x, lb, ub) -> th.Tensor:
     x = th.where(lb < ub, x, (lb + ub) / 2)
     return x
 
+
 def create_module(input_dim: int,
                   output_dim: int,
                   net_arch: List[int],
-                  activation_fn: Type[nn.Module] = nn.ReLU,
+                  activation_fn: Optional[Type[nn.Module]] = nn.ReLU,
                   squash_output: bool = False,
                   net_kwargs: Optional[Dict[str, Any]] = None, ) -> List[nn.Module]:
     """
@@ -55,7 +64,8 @@ def create_module(input_dim: int,
         if isinstance(net, int):
             modules.append(nn.Linear(last_layer_dim, net))
             if i < len(net_arch) - 1 or output_dim > 0:
-                modules.append(activation_fn())
+                if activation_fn is not None:
+                    modules.append(activation_fn())
             last_layer_dim = net
         elif isinstance(net, tuple):
             net_class, name = net

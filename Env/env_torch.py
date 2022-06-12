@@ -10,12 +10,13 @@ from typing import Dict, Any, List
 
 from Utils.prices import european_option_payoff, lookback_option_payoff
 from Utils.prices import geometric_brownian_motion, european_call_price, european_call_delta
+from Utils.tensors import to_tensor, to_numpy
 
 # from stable_baselines3.ddpg import DDPG
 # from stable_baselines3.ddpg.policies import MlpPolicy
 
 
-class BSMarket(gym.Env):
+class BSMarketTorch(gym.Env):
     def __init__(self,
                  n_assets: int,
                  cost: float,
@@ -33,7 +34,7 @@ class BSMarket(gym.Env):
                  reward_mode: str = "pnl",
                  payoff_coeff: float = 1.0):
 
-        super(BSMarket, self).__init__()
+        super(BSMarketTorch, self).__init__()
         self.n_assets = n_assets
         self.transaction_cost = cost
         self.cost = self.transaction_cost
@@ -77,11 +78,11 @@ class BSMarket(gym.Env):
         np.random.seed(seed)
         th.manual_seed(seed)
 
-    def reset(self, initialize="zero") -> GymObs:
+    def reset(self, initialize="zero") -> th.Tensor:
         if initialize == 'zero':
-            self.hold = np.zeros(self.n_assets)
+            self.hold = th.zeros(self.n_assets)
         elif initialize == 'std':
-            self.hold = np.random.randn(self.n_assets)
+            self.hold = th.randn(self.n_assets)
 
         self.now = 0
         # (n_periods, n_assets)
@@ -103,15 +104,19 @@ class BSMarket(gym.Env):
                                                  strike=self.strike,
                                                  dividend=self.dividend,
                                                  delta_return=True)
+
+        self.underlying_prices = to_tensor(self.underlying_prices)
+        self.option_prices = to_tensor(self.option_prices)
+
         return self.get_obs()
 
-    def get_obs(self) -> GymObs:
+    def get_obs(self) -> th.Tensor:
         moneyness = self.underlying_prices[self.now][:, None] / self.strike      # (n_periods+1, n_assets)
-        expiry = np.full_like(moneyness, (self.n_periods - self.now) * self.dt)
-        volatility = np.full_like(moneyness, self.volatility)
-        prev_hedge = self.hold.copy()[:, None]
+        expiry = th.full_like(moneyness, (self.n_periods - self.now) * self.dt)
+        volatility = th.full_like(moneyness, self.volatility)
+        prev_hedge = self.hold[:, None]
 
-        obs = np.c_[moneyness, expiry, volatility, prev_hedge]
+        obs = th.cat([moneyness, expiry, volatility, prev_hedge], dim=-1)
 
         return obs
 
@@ -119,11 +124,11 @@ class BSMarket(gym.Env):
         print(f'now: {self.now}')
         print(self.get_obs())
 
-    def step(self, action: np.ndarray, render=False) -> GymStepReturn:
+    def step(self, action: th.Tensor, render=False) -> GymStepReturn:
         """
         step - reward는 scalar로 전달되어야 하므로 n_assets의 reward에 대해 mean-variance measure를 취함
         """
-        assert np.all(action >= 0) and np.all(action <= 1), f'min:{np.min(action)}, max:{np.max(action)}'
+        assert th.all(action >= 0) and th.all(action <= 1), f'min:{th.min(action)}, max:{th.max(action)}'
         assert action.shape == (self.n_assets, )
 
         step_return = None
@@ -135,7 +140,7 @@ class BSMarket(gym.Env):
 
         return step_return
 
-    def pnl_step(self, action: np.ndarray) -> GymStepReturn:
+    def pnl_step(self, action: th.Tensor) -> GymStepReturn:
         """
         action for holdings
         :param action: holdings : (0, 1)
@@ -147,12 +152,12 @@ class BSMarket(gym.Env):
         now_option, option = self.option_prices[self.now:self.now+2]
 
         # transaction cost
-        cost = self.transaction_cost * np.abs(action - self.hold) * now_underlying
+        cost = self.transaction_cost * th.abs(action - self.hold) * now_underlying
         # gain from price movement
         price_gain = action * (underlying - now_underlying)
 
         self.now += 1
-        self.hold = action
+        self.hold = action.detach()
 
         if self.now == self.n_periods - 1:  # 만약 다음 step이 maturity라면, 다음 step에는 처분밖에 못하므로
             # call option payoff를 빼주는 이유는 seller 입장에서 option 행사는 손해이기 때문
@@ -164,9 +169,9 @@ class BSMarket(gym.Env):
 
         raw_reward = payoff + price_gain - cost
         # reward = np.mean(raw_reward) - self.transaction_cost*np.std(raw_reward)
-        reward = np.mean(raw_reward)
-        info['raw_reward'] = raw_reward
-        info['mean_square_reward'] = np.mean(raw_reward**2)
+        reward = th.mean(raw_reward)
+        info['raw_reward'] = raw_reward.detach()
+        info['mean_square_reward'] = th.mean(raw_reward.detach()**2)
 
         return self.get_obs(), reward, done, info
 
@@ -189,13 +194,13 @@ class BSMarket(gym.Env):
             raise ValueError(f"price generator name not found: {gen_name}")
 
 
-class BSMarketEval(BSMarket):
+class BSMarketEvalTorch(BSMarketTorch):
     def __init__(self, **env_kwargs):
-        super(BSMarketEval, self).__init__(**env_kwargs)
+        super(BSMarketEvalTorch, self).__init__(**env_kwargs)
 
-    def step(self, action: np.ndarray, render=False) -> GymStepReturn:
-        new_obs, reward, done, info = super(BSMarketEval, self).step(action, render)
-        reward -= self.transaction_cost * np.sqrt(info['mean_square_reward'] - reward ** 2)
+    def step(self, action: th.Tensor, render=False) -> GymStepReturn:
+        new_obs, reward, done, info = super(BSMarketEvalTorch, self).step(action, render)
+        reward -= self.transaction_cost * th.sqrt(info['mean_square_reward'] - reward ** 2)
         return new_obs, reward, done, info
 
     def pnl_eval(self, model=None):
