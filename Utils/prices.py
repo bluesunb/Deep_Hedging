@@ -1,4 +1,5 @@
 import numpy as np
+import torch as th
 from scipy.stats import norm
 
 from typing import Union, Tuple
@@ -7,7 +8,8 @@ from typing import Union, Tuple
 def geometric_brownian_motion(n_paths: int, n_periods: int,
                               drift: float, volatility: float, init_price: float, dt: float) -> np.ndarray:
 
-    z = np.random.standard_normal((n_periods, n_paths))
+    # z = np.random.standard_normal((n_periods, n_paths))
+    z = th.randn(size=(n_periods, n_paths)).numpy()
     z[0, :] = 0.0
 
     noise_term = volatility * np.sqrt(dt) * z.cumsum(axis=0)
@@ -28,7 +30,7 @@ def european_option_d1(moneyness: np.ndarray,
     :param risk_free_interest:
     """
 
-    expiry = expiry + 1e-6
+    expiry = expiry + 1e-7
     a = np.log(moneyness) + (risk_free_interest - dividend + 0.5 * volatility ** 2) * expiry
     b = volatility * np.sqrt(expiry)
     return a / b
@@ -72,7 +74,7 @@ def european_call_delta(moneyness: np.ndarray,
 
 
 def european_option_payoff(prices: np.ndarray, strike: float = 1.0) -> np.ndarray:
-    return np.clip(prices - strike, 0.0, np.inf)
+    return np.clip(prices[-1] - strike, 0.0, np.inf)
 
 
 def lookback_option_payoff(prices: np.ndarray, strike: float = 1.0) -> np.ndarray:

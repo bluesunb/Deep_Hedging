@@ -6,8 +6,9 @@ import gym.spaces as spaces
 from pprint import pprint
 
 from stable_baselines3.common.type_aliases import GymObs, GymStepReturn
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Callable, Optional
 
+from Env import rewards
 from Utils.prices import european_option_payoff, lookback_option_payoff
 from Utils.prices import geometric_brownian_motion, european_call_price, european_call_delta
 
@@ -28,6 +29,8 @@ class BSMarket(gym.Env):
                  risk_free_interest: float = 0.0,
                  strike: float = 1.0,
                  dividend: float = 0.0,
+                 reward_fn: str = "mean var",
+                 reward_fn_kwargs: Optional[Dict[str, Any]] = None,
                  payoff: str = "european",
                  gen_name: str = "gbm",
                  reward_mode: str = "pnl",
@@ -52,6 +55,10 @@ class BSMarket(gym.Env):
         self.dividend = dividend
 
         self.payoff = self.get_payoff_fn(payoff)
+
+        self.reward_fn = self.get_reward_fn(reward_fn)
+        self.reward_fn_kwargs = reward_fn_kwargs
+
         self.price_generator = self.get_price_generator(gen_name)
         self.reward_mode = reward_mode      # one of pnl, cashflow
         self.payoff_coeff = payoff_coeff
@@ -156,15 +163,17 @@ class BSMarket(gym.Env):
 
         if self.now == self.n_periods - 1:  # 만약 다음 step이 maturity라면, 다음 step에는 처분밖에 못하므로
             # call option payoff를 빼주는 이유는 seller 입장에서 option 행사는 손해이기 때문
-            payoff = - self.payoff(self.option_prices[-1], self.strike) - self.transaction_cost * underlying * action
+            payoff = - self.payoff(self.option_prices, self.strike) - self.transaction_cost * underlying * action
             info['msg'] = 'MATURITY'
             done = True
         else:
-            payoff = self.payoff_coeff*(option - now_option)
+            # payoff = self.payoff_coeff*(option - now_option)
+            payoff = now_option - option
 
         raw_reward = payoff + price_gain - cost
         # reward = np.mean(raw_reward) - self.transaction_cost*np.std(raw_reward)
-        reward = np.mean(raw_reward)
+        # reward = np.mean(raw_reward)
+        reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
         info['raw_reward'] = raw_reward
         info['mean_square_reward'] = np.mean(raw_reward**2)
 
@@ -188,15 +197,24 @@ class BSMarket(gym.Env):
         else:
             raise ValueError(f"price generator name not found: {gen_name}")
 
+    @staticmethod
+    def get_reward_fn(reward_fn):
+        if reward_fn == 'mean var':
+            return rewards.mean_variance_reward
+        elif reward_fn == 'entropy':
+            return rewards.pnl_entropic_reward
+        else:
+            raise ValueError(f"reward function not found: {reward_fn}")
+
 
 class BSMarketEval(BSMarket):
     def __init__(self, **env_kwargs):
         super(BSMarketEval, self).__init__(**env_kwargs)
 
-    def step(self, action: np.ndarray, render=False) -> GymStepReturn:
-        new_obs, reward, done, info = super(BSMarketEval, self).step(action, render)
-        reward -= self.transaction_cost * np.sqrt(info['mean_square_reward'] - reward ** 2)
-        return new_obs, reward, done, info
+    # def step(self, action: np.ndarray, render=False) -> GymStepReturn:
+    #     new_obs, reward, done, info = super(BSMarketEval, self).step(action, render)
+    #     reward += self.reward_fn(reward, **self.reward_fn_kwargs)
+    #     return new_obs, reward, done, info
 
     def pnl_eval(self, model=None):
         obs = self.reset()

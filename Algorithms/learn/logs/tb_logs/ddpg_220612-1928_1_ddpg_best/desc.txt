@@ -1,0 +1,6 @@
+DDPG only BEST (2022-06-21-7:31)
+
+    actor_loss 감소
+    mean_cost_loss 증가
+    std_cost_loss 증가
+

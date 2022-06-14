@@ -24,8 +24,11 @@ class NoTransactionBand(nn.Module):
         self.squash = squash
         self.mlp = nn.Sequential(*mlp)
 
-    def forward(self, obs):
-        moneyness, expiry, volatility, prev_hedge = [obs[..., i] for i in range(4)]
+    def forward(self, obs, prev_hedge=None):
+        if prev_hedge is None:
+            prev_hedge = obs[..., 3]
+
+        moneyness, expiry, volatility = [obs[..., i] for i in range(3)]
 
         delta = european_call_delta(moneyness, expiry, volatility)   # [0, 1]
         # delta = th.tensor(delta).to(actions)

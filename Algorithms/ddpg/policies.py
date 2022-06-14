@@ -15,7 +15,7 @@ from stable_baselines3.common.type_aliases import Schedule
 from stable_baselines3.td3.policies import BasePolicy
 from stable_baselines3.common.policies import BaseModel
 
-from Utils.prices import european_call_delta
+from Utils.prices_torch import european_call_delta
 from Utils.tensors import clamp, to_numpy, create_module
 
 class CustomActor(BasePolicy):
@@ -68,10 +68,9 @@ class CustomActor(BasePolicy):
         # prev_hedge = obs[..., 3]
 
         moneyness, expiry, volatility, prev_hedge = [obs[..., i] for i in range(4)]
-        delta = european_call_delta(to_numpy(moneyness),
-                                    to_numpy(expiry),
-                                    to_numpy(volatility))
-        delta = th.tensor(delta).to(action)     # [0, 1]
+        delta = european_call_delta(moneyness, expiry, volatility).to(action)
+        # assert th.all(delta - european_call_delta(moneyness, expiry, volatility) < 1e-6)
+        # delta = th.tensor(delta).to(action)     # [0, 1]
 
         lb = delta - F.leaky_relu(action[..., 0])       # [-1, 1]
         ub = delta + F.leaky_relu(action[..., 1])

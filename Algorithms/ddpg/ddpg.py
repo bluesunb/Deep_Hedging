@@ -15,7 +15,7 @@ from stable_baselines3.td3.td3 import TD3
 from Env.buffers import CustomReplayBuffer
 
 
-class DDPG(TD3):
+class DoubleDDPG(TD3):
     """
     Deep Deterministic Policy Gradient (DDPG).
 
@@ -84,7 +84,7 @@ class DDPG(TD3):
         std_coeff: float = 0.02,
     ):
 
-        super(DDPG, self).__init__(
+        super(DoubleDDPG, self).__init__(
             policy=policy,
             env=env,
             learning_rate=learning_rate,
@@ -230,7 +230,7 @@ class DDPG(TD3):
             reset_num_timesteps: bool = True,
     ) -> OffPolicyAlgorithm:
 
-        return super(DDPG, self).learn(
+        return super(DoubleDDPG, self).learn(
             total_timesteps=total_timesteps,
             callback=callback,
             log_interval=log_interval,
@@ -243,7 +243,7 @@ class DDPG(TD3):
         )
 
     def _excluded_save_params(self) -> List[str]:
-        save_params = super(DDPG, self)._excluded_save_params()
+        save_params = super(DoubleDDPG, self)._excluded_save_params()
         return save_params + ["critic2", "critic2_target"]
 
     def _get_torch_save_params(self) -> Tuple[List[str], List[str]]:

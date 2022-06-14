@@ -2,7 +2,7 @@ import numpy as np
 
 from pprint import pprint
 from Algorithms.ddpg import config
-from Algorithms import DDPG
+from Algorithms import DoubleDDPG
 
 
 best_path = '../logs/tb_logs/ddpg_220526-1356_1'
@@ -14,7 +14,7 @@ pprint(model_kwargs)
 pprint(learn_kwargs)
 
 env = model_kwargs['env']
-model = DDPG(**model_kwargs)
+model = DoubleDDPG(**model_kwargs)
 
 total_pnl = env.pnl_eval(model)
 print(f'total_pnl: (mean) {np.mean(total_pnl)},  (std) {np.std(total_pnl)}')
