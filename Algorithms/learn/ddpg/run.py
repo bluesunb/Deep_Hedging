@@ -9,18 +9,19 @@ from pprint import pprint
 
 env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config.yaml')
 
-ntb_mode = True
+ntb_mode = False
 
 env_kwargs.update({
     'reward_fn': 'mean var',
-    'reward_fn_kwargs': {}
+    'reward_fn_kwargs': {},
+    'reward_mode': 'pnl'
 })
 
 model_kwargs.update({
     'buffer_size': 300,
     'learning_starts': 300,
     'batch_size': 15,
-    'std_coeff': 1e-2
+    'std_coeff': 0.05
 })
 
 model_kwargs['policy_kwargs'].update({
@@ -31,7 +32,7 @@ learn_kwargs.update({
     'total_timesteps': 1500
 })
 
-del model_kwargs['std_coeff']
+# del model_kwargs['std_coeff']
 
 if ntb_mode:
     actor_net_kwargs = {'bn_kwargs': {'num_features': env_kwargs['n_assets']}}
@@ -59,10 +60,6 @@ else:
         'features_out': 2,
         'net_arch': [32, 64]
     })
-
-model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
-    'features_in': 5
-})
 
 config.reconstruct_config(env_kwargs, model_kwargs, learn_kwargs)
 # config.save_config('tmp_config.yaml', env_kwargs, model_kwargs, learn_kwargs)

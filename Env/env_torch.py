@@ -141,6 +141,9 @@ class BSMarketTorch(gym.Env):
         if self.reward_mode == 'pnl':
             step_return = self.pnl_step(action)
 
+        if self.reward_mode == 'cash':
+            step_return = self.cashflow_pnl(action)
+
         if render:
             self.render()
 
@@ -152,64 +155,52 @@ class BSMarketTorch(gym.Env):
         :param action: holdings : (0, 1)
         """
         done, info = False, {}
+        now_underlying, underlying = self.underlying_prices[self.now:self.now + 2]
+        now_option, option = self.option_prices[self.now:self.now + 2]
 
-        # action = action.flatten()
-        now_underlying, underlying = self.underlying_prices[self.now:self.now+2]
-        now_option, option = self.option_prices[self.now:self.now+2]
-
-        # transaction cost
-        cost = self.transaction_cost * th.abs(action - self.hold) * now_underlying
-        # gain from price movement
         price_gain = action * (underlying - now_underlying)
-        payoff = self.payoff_coeff * (now_option - option)
+        cost = self.transaction_cost * now_underlying * th.abs(action - self.hold)
 
         self.now += 1
         self.hold = action.detach()
 
-        if self.now == self.n_periods - 1:  # 만약 다음 step이 maturity라면, 다음 step에는 처분밖에 못하므로
-            # call option payoff를 빼주는 이유는 seller 입장에서 option 행사는 손해이기 때문
-            payoff += now_option - self.payoff(self.option_prices, self.strike) - \
-                      self.transaction_cost * underlying * action
-            info['msg'] = 'MATURITY'
+        if self.now == self.n_periods - 1:
+            payoff = option - self.payoff(self.underlying_prices, self.strike) - \
+                     self.transaction_cost * underlying * action
             done = True
-        # else:
-        #     # payoff = self.payoff_coeff*(option - now_option)
-        #     payoff = now_option - option
-        #     print(payoff.mean())
+            info['msg'] = 'MATURITY'
+        else:
+            payoff = self.payoff_coeff * (now_option - option)
 
         raw_reward = payoff + price_gain - cost
-        # reward = np.mean(raw_reward) - self.transaction_cost*np.std(raw_reward)
         reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
         info['raw_reward'] = to_numpy(raw_reward)
         info['mean_square_reward'] = np.mean(info['raw_reward'] ** 2)
 
         return self.get_obs(), reward, done, info
 
-    def pnl_step2(self, action: th.Tensor) -> GymStepReturn:
-        """
-        action for holdings
-        :param action: holdings : (0, 1)
-        """
+    def cashflow_pnl(self, action: th.Tensor) -> GymStepReturn:
         done, info = False, {}
-        now_underlying = self.underlying_prices[self.now]
-        now_option = self.option_prices[self.now]
+        now_underlying, underlying = self.underlying_prices[self.now:self.now + 2]
+        now_option, option = self.option_prices[self.now:self.now + 2]
+
+        price_gain = now_underlying*(self.hold - action)
+        cost = self.transaction_cost * now_underlying * th.abs(action - self.hold)
+        payoff = 0
 
         self.now += 1
+        self.hold = action
 
-        underlying = self.underlying_prices[self.now]
-        option = self.option_prices[self.now]
-
-        price_gain = action * (underlying - now_underlying)
-        cost = self.transaction_cost * now_underlying * th.abs(action - self.hold)
         if self.now == self.n_periods - 1:
-            payoff = now_option - self.payoff(self.underlying_prices, self.strike) - \
-                     self.transaction_cost * action * underlying
+            payoff = (1 - self.transaction_cost) * underlying * action - \
+                     self.payoff(self.underlying_prices, self.strike)
             done = True
-        else:
-            payoff = now_option - option
+            info['msg'] = 'MATURITY'
 
-        reward = payoff + price_gain - cost
-        reward = self.reward_fn(reward, **self.reward_fn_kwargs)
+        raw_reward = payoff + price_gain + cost
+        reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
+        info['raw_reward'] = to_numpy(raw_reward)
+        info['mean_square_reward'] = np.mean(info['raw_reward'] ** 2)
 
         return self.get_obs(), reward, done, info
 

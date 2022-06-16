@@ -20,7 +20,7 @@ class BSMarket(gym.Env):
     def __init__(self,
                  n_assets: int,
                  cost: float,
-                 n_periods: int = 30,
+                 maturity: int = 30,
                  freq: float = 1,
                  period_unit: int = 365,
                  drift: float = 0.0,
@@ -42,9 +42,9 @@ class BSMarket(gym.Env):
         self.cost = self.transaction_cost
 
         self.period_unit = period_unit
-        self.n_periods = int(n_periods / freq)     # 30 / 0.5 = 60
         self.dt = freq / period_unit        # 0.5 / 365
-        self.maturity = n_periods / period_unit  # 30 / 365
+        self.maturity = maturity / period_unit   # 30 / 365
+        self.n_periods = int(maturity / freq) + 1     # 30 / 0.5 = 60 = self.maturity / self.dt + 1
 
         self.drift = drift
         self.volatility = volatility
@@ -57,7 +57,7 @@ class BSMarket(gym.Env):
         self.payoff = self.get_payoff_fn(payoff)
 
         self.reward_fn = self.get_reward_fn(reward_fn)
-        self.reward_fn_kwargs = reward_fn_kwargs
+        self.reward_fn_kwargs = {} if reward_fn_kwargs is None else reward_fn_kwargs
 
         self.price_generator = self.get_price_generator(gen_name)
         self.reward_mode = reward_mode      # one of pnl, cashflow
@@ -75,7 +75,7 @@ class BSMarket(gym.Env):
         self.reset()
 
         # moneyness, expiry, volatility, prev_hedge
-        self.observation_space = spaces.Box(0, np.inf, shape=(n_assets, 4))
+        self.observation_space = spaces.Box(0, np.inf, shape=(n_assets, 4) if n_assets > 1 else (4, ))
         self.action_space = spaces.Box(0, 1, shape=(n_assets, ))
 
         print("env 'BSMarket was created!")
@@ -100,7 +100,8 @@ class BSMarket(gym.Env):
                                                       self.dt)
 
         moneyness = self.underlying_prices/self.strike
-        expiry = self.maturity - np.arange(len(self.underlying_prices))[:, None] * self.dt
+        expiry = np.linspace(self.maturity, 0, self.n_periods)[:, None]
+        expiry[np.where(expiry == 0)] = 1e-6
 
         self.option_prices, self.delta = european_call_price(
                                                  moneyness,
@@ -110,15 +111,21 @@ class BSMarket(gym.Env):
                                                  strike=self.strike,
                                                  dividend=self.dividend,
                                                  delta_return=True)
+
         return self.get_obs()
 
     def get_obs(self) -> GymObs:
-        moneyness = self.underlying_prices[self.now][:, None] / self.strike      # (n_periods+1, n_assets)
-        expiry = np.full_like(moneyness, (self.n_periods - self.now) * self.dt)
+        if self.n_assets > 1:
+            moneyness = self.underlying_prices[self.now][:, None] / self.strike      # (n_periods+1, n_assets)
+            prev_hedge = self.hold.copy()[:, None]
+        else:
+            moneyness = self.underlying_prices[self.now]
+            prev_hedge = self.hold.copy()
+        expiry = np.full_like(moneyness, self.maturity - self.now*self.dt)
+        expiry[np.where(expiry == 0)] = 1e-6
         volatility = np.full_like(moneyness, self.volatility)
-        prev_hedge = self.hold.copy()[:, None]
 
-        obs = np.c_[moneyness, expiry, volatility, prev_hedge]
+        obs = np.hstack([moneyness, expiry, volatility, prev_hedge])
 
         return obs
 
@@ -131,11 +138,15 @@ class BSMarket(gym.Env):
         step - reward는 scalar로 전달되어야 하므로 n_assets의 reward에 대해 mean-variance measure를 취함
         """
         assert np.all(action >= 0) and np.all(action <= 1), f'min:{np.min(action)}, max:{np.max(action)}'
-        assert action.shape == (self.n_assets, )
+        if len(action.shape) > 1:
+            action = action.flatten()
 
         step_return = None
         if self.reward_mode == 'pnl':
             step_return = self.pnl_step(action)
+
+        if self.reward_mode == 'cash':
+            step_return = self.cashflow_pnl(action)
 
         if render:
             self.render()
@@ -148,34 +159,51 @@ class BSMarket(gym.Env):
         :param action: holdings : (0, 1)
         """
         done, info = False, {}
+        now_underlying, underlying = self.underlying_prices[self.now:self.now + 2]
+        now_option, option = self.option_prices[self.now:self.now + 2]
 
-        # action = action.flatten()
-        now_underlying, underlying = self.underlying_prices[self.now:self.now+2]
-        now_option, option = self.option_prices[self.now:self.now+2]
-
-        # transaction cost
-        cost = self.transaction_cost * np.abs(action - self.hold) * now_underlying
-        # gain from price movement
         price_gain = action * (underlying - now_underlying)
+        cost = self.transaction_cost * now_underlying * np.abs(action - self.hold)
 
         self.now += 1
         self.hold = action
 
-        if self.now == self.n_periods - 1:  # 만약 다음 step이 maturity라면, 다음 step에는 처분밖에 못하므로
-            # call option payoff를 빼주는 이유는 seller 입장에서 option 행사는 손해이기 때문
-            payoff = - self.payoff(self.option_prices, self.strike) - self.transaction_cost * underlying * action
-            info['msg'] = 'MATURITY'
+        if self.now == self.n_periods - 1:
+            payoff = option - self.payoff(self.underlying_prices, self.strike) - \
+                     self.transaction_cost * underlying * action
             done = True
+            info['msg'] = 'MATURITY'
         else:
-            # payoff = self.payoff_coeff*(option - now_option)
-            payoff = now_option - option
+            payoff = self.payoff_coeff * (now_option - option)
 
         raw_reward = payoff + price_gain - cost
-        # reward = np.mean(raw_reward) - self.transaction_cost*np.std(raw_reward)
-        # reward = np.mean(raw_reward)
+        reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
+        # info['raw_reward'] = raw_reward
+        # info['mean_square_reward'] = np.mean(info['raw_reward'] ** 2)
+
+        return self.get_obs(), reward, done, info
+
+    def cashflow_pnl(self, action: np.ndarray) -> GymStepReturn:
+        done, info = False, {}
+        now_underlying, underlying = self.underlying_prices[self.now:self.now + 2]
+
+        price_gain = now_underlying * (self.hold - action)
+        cost = self.transaction_cost * now_underlying * np.abs(action - self.hold)
+        payoff = 0
+
+        self.now += 1
+        self.hold = action
+
+        if self.now == self.n_periods - 1:
+            payoff = (1 - self.transaction_cost) * underlying * action - \
+                     self.payoff(self.underlying_prices, self.strike)
+            done = True
+            info['msg'] = 'MATURITY'
+
+        raw_reward = payoff + price_gain + cost
         reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
         info['raw_reward'] = raw_reward
-        info['mean_square_reward'] = np.mean(raw_reward**2)
+        info['mean_square_reward'] = np.mean(info['raw_reward'] ** 2)
 
         return self.get_obs(), reward, done, info
 
@@ -203,6 +231,10 @@ class BSMarket(gym.Env):
             return rewards.mean_variance_reward
         elif reward_fn == 'entropy':
             return rewards.pnl_entropic_reward
+        elif reward_fn == 'raw':
+            return rewards.raw_reward
+        elif reward_fn == 'cvar':
+            return rewards.cvar_reward
         else:
             raise ValueError(f"reward function not found: {reward_fn}")
 
@@ -210,10 +242,12 @@ class BSMarket(gym.Env):
 class BSMarketEval(BSMarket):
     def __init__(self, **env_kwargs):
         super(BSMarketEval, self).__init__(**env_kwargs)
+        # self.reward_mode = 'cash'
+        # self.reward_fn = self.get_reward_fn('raw')
 
     # def step(self, action: np.ndarray, render=False) -> GymStepReturn:
     #     new_obs, reward, done, info = super(BSMarketEval, self).step(action, render)
-    #     reward += self.reward_fn(reward, **self.reward_fn_kwargs)
+    #     reward = np.sum(reward)
     #     return new_obs, reward, done, info
 
     def pnl_eval(self, model=None):

@@ -13,7 +13,7 @@ from stable_baselines3.td3.policies import TD3Policy
 from stable_baselines3.td3.td3 import TD3
 
 
-class DDPG(TD3):
+class QDDPG(TD3):
     """
     Deep Deterministic Policy Gradient (DDPG).
 
@@ -82,7 +82,7 @@ class DDPG(TD3):
         std_coeff: float = 0.02,
     ):
 
-        super(DDPG, self).__init__(
+        super(QDDPG, self).__init__(
             policy=policy,
             env=env,
             learning_rate=learning_rate,
@@ -129,16 +129,17 @@ class DDPG(TD3):
         # Switch to train mode (this affects batch norm / dropout)
         self.policy.set_training_mode(True)
 
-        # Update learning rate according to lr schedule
-        self._update_learning_rate([self.actor.optimizer, self.critic.optimizer, self.critic2.optimizer])
+        # Optimizers
+        optimizers = [self.actor.optimizer, self.critic.optimizer, self.critic2.optimizer]
 
-        actor_losses, critic_losses = [], []
-        critic2_losses = []
-        mean_cost_losses = []
-        std_cost_losses = []
+        # Update learning rate according to lr schedule
+        self._update_learning_rate(optimizers)
+
+        actor_losses, critic_losses, critic2_losses = [], [], []
+        mean_cost_losses, std_cost_losses = [], []
 
         for _ in range(gradient_steps):
-
+            # Increase num of updates
             self._n_updates += 1
             # Sample replay buffer
             replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
@@ -151,7 +152,7 @@ class DDPG(TD3):
 
                 # Compute the next Q-values: min over all critics targets
                 next_q_values = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
-                next_q_values, _ = th.min(next_q_values, dim=1, keepdim=True)
+                next_q_values, _ = th.min(next_q_values, dim=1, keepdim=True)   # (n_batches, 1)
                 target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
 
                 next_q2_values = th.cat(self.critic2_target(replay_data.next_observations, next_actions), dim=1)
@@ -179,22 +180,21 @@ class DDPG(TD3):
             self.critic.optimizer.step()
             self.critic2.optimizer.step()
 
-            # Delayed policy updates
+            # Delayed Policy update
             if self._n_updates % self.policy_delay == 0:
                 # Compute actor loss
                 mean_cost_loss = -self.critic.q1_forward(replay_data.observations,
                                                          self.actor(replay_data.observations)).mean()
 
                 std_cost_loss = th.abs(
-                    self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations)) - \
-                    self.critic.q1_forward(replay_data.observations, self.actor(replay_data.observations)) ** 2
+                    self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations)).mean() -
+                    mean_cost_loss ** 2
                 )
-
-                std_cost_loss = th.sqrt(std_cost_loss).mean() * self.std_coeff
+                std_cost_loss = std_cost_loss.sqrt() * self.std_coeff
 
                 actor_loss = mean_cost_loss + std_cost_loss
                 actor_losses.append(actor_loss.item())
-                mean_cost_losses.append(mean_cost_loss.item())
+                mean_cost_losses.append(-mean_cost_loss.item())
                 std_cost_losses.append(std_cost_loss.item())
 
                 # Optimize the actor
@@ -227,7 +227,7 @@ class DDPG(TD3):
         reset_num_timesteps: bool = True,
     ) -> OffPolicyAlgorithm:
 
-        return super(DDPG, self).learn(
+        return super(QDDPG, self).learn(
             total_timesteps=total_timesteps,
             callback=callback,
             log_interval=log_interval,
@@ -240,7 +240,7 @@ class DDPG(TD3):
         )
 
     def _excluded_save_params(self) -> List[str]:
-        save_params = super(DDPG, self)._excluded_save_params()
+        save_params = super(QDDPG, self)._excluded_save_params()
         return save_params + ["critic2", "critic2_target"]
 
     def _get_torch_save_params(self) -> Tuple[List[str], List[str]]:

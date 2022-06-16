@@ -140,22 +140,19 @@ class DoubleDDPG(TD3):
         actor_losses, critic_losses, critic2_losses = [], [], []
         mean_cost_losses, std_cost_losses = [], []
 
-        for gradient_step in range(gradient_steps):
+        for _ in range(gradient_steps):
             # Increase num of updates
             self._n_updates += 1
-
             # Sample replay buffer
-            # [batch_size, || obs_dim]
             replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
 
             with th.no_grad():
-                # Sample action noise from Normal(0, target_policy_noise)
-                # & clipping it into (-1, 1)    (squashed)
+                # Select action according to policy and add clipped noise
                 noise = replay_data.actions.clone().data.normal_(0, self.target_policy_noise)
                 noise = noise.clamp(-self.target_noise_clip, self.target_noise_clip)
                 next_actions = (self.actor_target(replay_data.next_observations) + noise).clamp(-1, 1)
 
-                # Compute next Q-values
+                # Compute the next Q-values: min over all critics targets
                 next_q_values = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
                 next_q_values, _ = th.min(next_q_values, dim=1, keepdim=True)   # (n_batches, 1)
                 target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
@@ -166,7 +163,7 @@ class DoubleDDPG(TD3):
 
             # Get current Q-values estimates for each critic network
             current_q_values = self.critic(replay_data.observations, replay_data.actions)
-            current_q2_values = self.critic(replay_data.observations, replay_data.actions)
+            current_q2_values = self.critic2(replay_data.observations, replay_data.actions)
 
             # Compute critic loss
             critic_loss = sum([F.mse_loss(current_q, target_q_values) for current_q in current_q_values])
@@ -175,7 +172,7 @@ class DoubleDDPG(TD3):
             critic2_loss = sum([F.mse_loss(current_q2, target_q2_values) for current_q2 in current_q2_values])
             critic2_losses.append(critic2_loss.item())
 
-            # Optimize the critic
+            # Optimize the critics
             self.critic.optimizer.zero_grad()
             self.critic2.optimizer.zero_grad()
             critic_loss.backward()
@@ -186,14 +183,14 @@ class DoubleDDPG(TD3):
             # Delayed Policy update
             if self._n_updates % self.policy_delay == 0:
                 # Compute actor loss
-                mean_cost_loss = - self.critic.q1_forward(replay_data.observations,
-                                                          self.actor(replay_data.observations)).mean()
+                mean_cost_loss = -self.critic.q1_forward(replay_data.observations,
+                                                         self.actor(replay_data.observations)).mean()
+
                 std_cost_loss = th.abs(
-                    self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations)) -
-                    # self.critic.q1_forward(replay_data.observations, self.actor(replay_data.observations)) ** 2
-                    mean_cost_loss**2
+                    self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations)).mean() -
+                    mean_cost_loss ** 2
                 )
-                std_cost_loss = std_cost_loss.mean().sqrt() * self.std_coeff
+                std_cost_loss = std_cost_loss.sqrt() * self.std_coeff
 
                 actor_loss = mean_cost_loss + std_cost_loss
                 actor_losses.append(actor_loss.item())

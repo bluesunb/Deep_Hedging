@@ -13,7 +13,7 @@ def geometric_brownian_motion(n_paths: int, n_periods: int,
     z[0, :] = 0.0
 
     noise_term = volatility * np.sqrt(dt) * z.cumsum(axis=0)
-    t = np.arange(0, n_periods*dt, dt).reshape(-1, 1)
+    t = np.linspace(0, (n_periods - 1)*dt, n_periods).reshape(-1, 1)
     return init_price*np.exp((drift - 0.5 * volatility ** 2) * t + noise_term)
 
 
@@ -30,7 +30,6 @@ def european_option_d1(moneyness: np.ndarray,
     :param risk_free_interest:
     """
 
-    expiry = expiry + 1e-7
     a = np.log(moneyness) + (risk_free_interest - dividend + 0.5 * volatility ** 2) * expiry
     b = volatility * np.sqrt(expiry)
     return a / b
@@ -79,3 +78,6 @@ def european_option_payoff(prices: np.ndarray, strike: float = 1.0) -> np.ndarra
 
 def lookback_option_payoff(prices: np.ndarray, strike: float = 1.0) -> np.ndarray:
     return np.clip(np.max(prices, axis=0) - strike, 0.0, np.inf)
+
+def pnl_entropic_loss(pnl, aversion=1.0) -> th.Tensor:
+    return -np.mean(-np.exp(-aversion*pnl), axis=-1)
