@@ -8,7 +8,6 @@ from stable_baselines3.common.preprocessing import get_action_dim
 from stable_baselines3.common.torch_layers import (
     BaseFeaturesExtractor,
     FlattenExtractor,
-    get_actor_critic_arch
 )
 from stable_baselines3.common.type_aliases import Schedule
 from stable_baselines3.td3.policies import BasePolicy
@@ -17,6 +16,20 @@ from Algorithms.ddpg.actor_critic import (
     CustomActor, FlattenActor,
     CustomContinuousCritic, FlattenCritic
 )
+
+
+def get_actor_critic_arch(net_arch: Union[List[int], Dict[str, List[int]]]) -> Tuple[List[int], ...]:
+
+    if isinstance(net_arch, list):
+        actor_arch, critic_arch, critic2_arch = net_arch, net_arch, net_arch
+    else:
+        assert isinstance(net_arch, dict), "Error: the net_arch can only contain be a list of ints or a dict"
+        assert "pi" in net_arch, "Error: no key 'pi' was provided in net_arch for the actor network"
+        assert "qf" in net_arch, "Error: no key 'qf' was provided in net_arch for the critic network"
+        assert "qf2" in net_arch, "Error: no key 'qf' was provided in net_arch for the critic network"
+        actor_arch, critic_arch = net_arch["pi"], net_arch["qf"]
+        critic2_arch = net_arch['qf2']
+    return actor_arch, critic_arch, critic2_arch
 
 
 class DoubleDDPGPolicy(BasePolicy):
@@ -80,7 +93,7 @@ class DoubleDDPGPolicy(BasePolicy):
             actor_net_kwargs = {'bn_kwargs': {'num_features': get_action_dim(action_space)}}
             critic_net_kwargs = actor_net_kwargs.copy()
 
-        actor_arch, critic_arch = get_actor_critic_arch(net_arch)
+        actor_arch, critic_arch, critic2_arch = get_actor_critic_arch(net_arch)
 
         self.net_arch = net_arch
         self.activation_fn = activation_fn
@@ -100,6 +113,7 @@ class DoubleDDPGPolicy(BasePolicy):
         }
         self.actor_kwargs = self.net_args.copy()
         self.critic_kwargs = self.net_args.copy()
+        self.critic2_kwargs = self.net_args.copy()
         self.critic_kwargs.update(
             {
                 "n_critics": n_critics,
@@ -108,6 +122,9 @@ class DoubleDDPGPolicy(BasePolicy):
                 "share_features_extractor": share_features_extractor,
             }
         )
+        self.critic2_kwargs.update({
+            "net_arch": critic2_arch,
+        })
 
         self.actor, self.actor_target = None, None
         self.critic, self.critic_target = None, None
@@ -135,15 +152,15 @@ class DoubleDDPGPolicy(BasePolicy):
             # will be 2 * tau instead of tau (updated one time with the actor, a second time with the critic)
             self.critic_target = self.make_critic(features_extractor=self.actor_target.features_extractor)
             if self.double_ddpg:
-                self.critic2 = self.make_critic(features_extractor=self.actor.features_extractor)
-                self.critic2_target = self.make_critic(features_extractor=self.actor_target.features_extractor)
+                self.critic2 = self.make_critic2(features_extractor=self.actor.features_extractor)
+                self.critic2_target = self.make_critic2(features_extractor=self.actor_target.features_extractor)
         else:
             # Create new features extractor for each network
             self.critic = self.make_critic(features_extractor=None)
             self.critic_target = self.make_critic(features_extractor=None)
             if self.double_ddpg:
-                self.critic2 = self.make_critic(features_extractor=None)
-                self.critic2_target = self.make_critic(features_extractor=None)
+                self.critic2 = self.make_critic2(features_extractor=None)
+                self.critic2_target = self.make_critic2(features_extractor=None)
 
         self.critic_target.load_state_dict(self.critic.state_dict())
         self.critic.optimizer = self.optimizer_class(self.critic.parameters(), lr=lr_schedule(1),
@@ -193,6 +210,12 @@ class DoubleDDPGPolicy(BasePolicy):
         if self.one_asset:
             return FlattenCritic(**critic_kwargs).to(self.device)
         return CustomContinuousCritic(**critic_kwargs).to(self.device)
+
+    def make_critic2(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Union[CustomContinuousCritic, FlattenCritic]:
+        critic2_kwargs = self._update_features_extractor(self.critic2_kwargs, features_extractor)
+        if self.one_asset:
+            return FlattenCritic(**critic2_kwargs).to(self.device)
+        return CustomContinuousCritic(**critic2_kwargs).to(self.device)
 
     def forward(self, observation: th.Tensor, deterministic: bool = False) -> th.Tensor:
         return self._predict(observation, deterministic=deterministic)

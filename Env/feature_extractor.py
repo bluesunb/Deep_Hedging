@@ -2,7 +2,7 @@ import gym
 import torch as th
 from torch import nn
 
-from typing import List, Dict, Type
+from typing import List, Dict, Type, Tuple
 from typing import Optional
 
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
@@ -20,6 +20,7 @@ class MarketObsExtractor(BaseFeaturesExtractor):
                  features_out: int,
                  net_arch: Optional[List[int]],
                  activation_fn: nn.Module,
+                 flat_obs: bool,
                  last_activation_fn: nn.Module = None):
 
         super(MarketObsExtractor, self).__init__(observation_space,
@@ -29,19 +30,18 @@ class MarketObsExtractor(BaseFeaturesExtractor):
         # nn.BatchNorm1d(3)([[[1,2,3,4],[5,6,7,8]], [[1,3,5,7],[2,4,6,8]]]) = [[[a,..],[a..]], [[b,..],[b,..]]]
 
         modules = []
-        flatten = len(observation_space.shape) == 1
         bn_dim = observation_space.shape[0]
         n_assets = observation_space.shape[0]
 
         if len(net_arch) > 0:
-            modules.append(nn.BatchNorm1d(bn_dim if flatten else n_assets))
+            modules.append(nn.BatchNorm1d(bn_dim if flat_obs else n_assets))
             modules.append(nn.Linear(features_in, net_arch[0]))
             modules.append(activation_fn())
             bn_dim = net_arch[0]
 
         for idx in range(len(net_arch) - 1):
             # modules.append(nn.BatchNorm1d(num_features=net_arch[idx]))
-            modules.append(nn.BatchNorm1d(bn_dim if flatten else n_assets))
+            modules.append(nn.BatchNorm1d(bn_dim if flat_obs else n_assets))
             modules.append(nn.Linear(net_arch[idx], net_arch[idx + 1]))
             modules.append(activation_fn())
             bn_dim = net_arch[idx + 1]
@@ -49,7 +49,7 @@ class MarketObsExtractor(BaseFeaturesExtractor):
         if features_out > 0:
             last_layer_dim = net_arch[-1] if len(net_arch) > 0 else features_in
             if modules:
-                modules.append(nn.BatchNorm1d(bn_dim if flatten else n_assets))
+                modules.append(nn.BatchNorm1d(bn_dim if flat_obs else n_assets))
             modules.append(nn.Linear(last_layer_dim, features_out))
 
         if last_activation_fn is not None:

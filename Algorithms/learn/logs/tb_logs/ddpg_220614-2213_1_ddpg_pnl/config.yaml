@@ -46,11 +46,13 @@ model_kwargs:
     activation_fn: &id001 !!python/name:torch.nn.modules.activation.ReLU ''
     actor_net_kwargs: null
     critic_net_kwargs: null
+    double_ddpg: true
     features_extractor_class: !!python/name:Env.feature_extractor.MarketObsExtractor ''
     features_extractor_kwargs:
       activation_fn: *id001
       features_in: 4
       features_out: 2
+      flat_obs: false
       last_activation_fn: *id001
       net_arch:
       - 32
@@ -59,6 +61,7 @@ model_kwargs:
     net_arch: []
     normalize_images: false
     ntb_mode: false
+    one_asset: false
     optimizer_class: !!python/name:torch.optim.adam.Adam ''
     optimizer_kwargs: null
     share_features_extractor: true
