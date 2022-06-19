@@ -172,12 +172,12 @@ class BSMarket(gym.Env):
         self.hold = action
 
         if self.now == self.n_periods - 1:
-            payoff = option - self.payoff(self.underlying_prices, self.strike) - \
+            payoff = now_option - self.payoff(self.underlying_prices, self.strike) - \
                      self.transaction_cost * underlying * action
             done = True
             info['msg'] = 'MATURITY'
         else:
-            payoff = self.payoff_coeff * (now_option - option)
+            payoff = now_option - option
 
         raw_reward = payoff + price_gain - cost
         reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
@@ -200,11 +200,12 @@ class BSMarket(gym.Env):
 
         if self.now == self.n_periods - 1:
             payoff = (1 - self.transaction_cost) * underlying * action - \
-                     self.payoff(self.underlying_prices, self.strike)
+                     self.payoff(self.underlying_prices, self.strike) + self.option_prices[0]
+
             done = True
             info['msg'] = 'MATURITY'
 
-        raw_reward = payoff + price_gain + cost
+        raw_reward = payoff + price_gain - cost
         reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
         info['raw_reward'] = raw_reward
         # info['mean_square_reward'] = np.mean(info['raw_reward'] ** 2)
@@ -252,8 +253,7 @@ class BSMarketEval(BSMarket):
 
     # def step(self, action: np.ndarray, render=False) -> GymStepReturn:
     #     new_obs, reward, done, info = super(BSMarketEval, self).step(action, render)
-    #     reward = np.sum(reward)
-    #     return new_obs, reward, done, info
+    #     return new_obs, info['raw_reward'], done, {}
 
     def eval(self, model=None, reward_mode='cash', n=1):
         tmp = self.reward_mode
@@ -270,7 +270,7 @@ class BSMarketEval(BSMarket):
                 else:
                     action = self.action_space.sample()
                 obs, reward, done, info = self.step(action)
-                total_raw_reward += reward['raw_reward']
+                total_raw_reward += info['raw_reward']
             result.append(total_raw_reward)
 
         self.reward_mode = tmp

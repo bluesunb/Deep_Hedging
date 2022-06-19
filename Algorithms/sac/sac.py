@@ -103,6 +103,7 @@ class SAC(OffPolicyAlgorithm):
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
+        mean_coeff: float = 1.0,
         std_coeff: float = 0.02,
     ):
 
@@ -134,6 +135,7 @@ class SAC(OffPolicyAlgorithm):
             supported_action_spaces=(gym.spaces.Box),
         )
 
+        self.mean_coeff = mean_coeff
         self.std_coeff = std_coeff
         self.target_entropy = target_entropy
         self.log_ent_coef = None  # type: Optional[th.Tensor]
@@ -152,7 +154,7 @@ class SAC(OffPolicyAlgorithm):
         # Target entropy is used when learning the entropy coefficient
         if self.target_entropy == "auto":
             # automatically set target entropy if needed
-            self.target_entropy = -np.prod(self.env.action_space.shape).astype(np.float32)
+            self.target_entropy = -np.prod(self.env.action_space.shape).astype(np.float32)  # -1000
         else:
             # Force conversion
             # this will also throw an error for unexpected string
@@ -199,6 +201,8 @@ class SAC(OffPolicyAlgorithm):
         ent_coef_losses, ent_coefs = [], []
         actor_losses, critic_losses, critic2_losses = [], [], []
         mean_cost_losses, std_cost_losses = [], []
+        actor_actions_mean = []
+        actor_actions_std = []
 
         for gradient_step in range(gradient_steps):
             # Sample replay buffer
@@ -219,7 +223,6 @@ class SAC(OffPolicyAlgorithm):
                 # see https://github.com/rail-berkeley/softlearning/issues/60
                 ent_coef = th.exp(self.log_ent_coef.detach())
                 ent_coef_loss = -(self.log_ent_coef * (log_prob + self.target_entropy).detach()).mean()
-                ent_coef_losses.append(ent_coef_loss.item())
             else:
                 ent_coef = self.ent_coef_tensor
 
@@ -239,14 +242,14 @@ class SAC(OffPolicyAlgorithm):
                 next_q_values = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
                 next_q_values, _ = th.min(next_q_values, dim=1, keepdim=True)
                 # add entropy term
-                # next_q_values = next_q_values - ent_coef * next_log_prob.reshape(-1, 1)
+                next_q_values = next_q_values - ent_coef * next_log_prob.reshape(-1, 1)
                 # td error + entropy term
                 target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
 
                 next_q2_values = th.cat(self.critic2_target(replay_data.next_observations, next_actions), dim=1)
                 next_q2_values, _ = th.min(next_q2_values, dim=1, keepdim=True)
-                # next_q2_values = next_q2_values - ent_coef * next_log_prob.reshape(-1, 1)
-                target_q2_values = replay_data.rewards2 ** 2 + (1 - replay_data.dones) * self.gamma * next_q2_values
+                next_q2_values = next_q2_values - ent_coef * next_log_prob.reshape(-1, 1)
+                target_q2_values = replay_data.rewards2 + (1 - replay_data.dones) * self.gamma * next_q2_values
 
             # Get current Q-values estimates for each critic network
             # using action from the replay buffer
@@ -273,20 +276,24 @@ class SAC(OffPolicyAlgorithm):
             # Mean over all critic networks
             mean_cost_loss = th.cat(self.critic.forward(replay_data.observations, actions_pi), dim=1)
             std_cost_loss = th.abs(
-                th.cat(self.critic2.forward(replay_data.observations, actions_pi), dim=1) -
-                mean_cost_loss ** 2
+                th.cat(self.critic2.forward(replay_data.observations, actions_pi), dim=1)
             )
-            std_cost_loss = std_cost_loss.sqrt() * self.std_coeff
             min_mean_cost_loss, _ = th.min(mean_cost_loss, dim=1, keepdim=True)
             min_std_cost_loss, _ = th.min(std_cost_loss, dim=1, keepdim=True)
 
             actor_loss = (ent_coef * log_prob
-                          - min_mean_cost_loss + min_std_cost_loss
-                          - ent_coef * next_log_prob.reshape(-1, 1)).mean()
+                          - min_mean_cost_loss * self.mean_coeff
+                          + min_std_cost_loss * self.std_coeff).mean()
 
             actor_losses.append(actor_loss.item())
             mean_cost_losses.append(min_mean_cost_loss.mean().item())
             std_cost_losses.append(min_std_cost_loss.mean().item())
+
+            with th.no_grad():
+                actor_actions_mean.append(th.mean(actions_pi.mean(dim=-1)).item())
+                actor_actions_std.append(th.mean(actions_pi.std(dim=-1)).item())
+                # actor_actions_std.append(th.mean(actions_pi.max(dim=-1).values).item())
+                ent_coef_losses.append(log_prob.mean().item())
 
             # Optimize the actor
             self.actor.optimizer.zero_grad()
@@ -307,8 +314,11 @@ class SAC(OffPolicyAlgorithm):
         self.logger.record("train/std_cost_loss", np.mean(std_cost_losses))
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         self.logger.record("train/critic2_loss", np.mean(critic2_losses))
+        self.logger.record("action/action_mean", np.mean(actor_actions_mean))
+        self.logger.record("action/action_std", np.mean(actor_actions_std))
         if len(ent_coef_losses) > 0:
-            self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
+            # self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
+            self.logger.record("train/log_prob", np.mean(ent_coef_losses))
 
     def learn(
         self,

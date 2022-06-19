@@ -1,34 +1,19 @@
-from Env.env import BSMarket
+import numpy as np
 
-env_kwargs = {'cost': 0.02,
-              'dividend': 0.0,
-              'drift': 0.0,
-              'freq': 1,
-              'gen_name': 'gbm',
-              'init_price': 1.0,
-              'maturity': 30,
-              'n_assets': 1000,
-              'payoff': 'european',
-              'payoff_coeff': 1.0,
-              'period_unit': 365,
-              'reward_fn': 'mean var',
-              'reward_fn_kwargs': {},
-              'reward_mode': 'cash',
-              'risk_free_interest': 0.0,
-              'strike': 1.0,
-              'volatility': 0.2}
+class Tmp:
+    def predict(self, obs, deterministic=False):
+        return np.full(1000, 0.5), None
 
-env = BSMarket(**env_kwargs)
+from Utils.tensors import set_seed
+from Env.env import BSMarketEval
 
-def evaluate(env):
-    obs = env.reset()
-    done, info = False, {}
-    total_pnl = 0
-    while not done:
-        action = env.action_space.sample()
-        obs, reward, done, info = env.step(action)
-        total_pnl += reward
+env = BSMarketEval(n_assets=1000, cost=0.02, maturity=2)
+tmp = Tmp()
 
-    return total_pnl
+set_seed()
+pnl = env.eval(tmp, reward_mode='pnl', n=1)
+set_seed()
+cash = env.eval(tmp, reward_mode='cash', n=1)
 
-total_pnl = evaluate(env)
+print(pnl.mean())
+print(cash.mean())
