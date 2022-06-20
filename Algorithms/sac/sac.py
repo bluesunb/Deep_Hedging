@@ -14,6 +14,8 @@ from stable_baselines3.sac.policies import SACPolicy
 
 from Env.buffers import CustomReplayBuffer
 
+from stable_baselines3.sac import SAC
+
 
 class SAC(OffPolicyAlgorithm):
     """
@@ -198,7 +200,7 @@ class SAC(OffPolicyAlgorithm):
         # Update learning rate according to lr schedule
         self._update_learning_rate(optimizers)
 
-        ent_coef_losses, ent_coefs = [], []
+        ent_coef_losses, ent_coefs, log_probs = [], [], []
         actor_losses, critic_losses, critic2_losses = [], [], []
         mean_cost_losses, std_cost_losses = [], []
         actor_actions_mean = []
@@ -223,6 +225,7 @@ class SAC(OffPolicyAlgorithm):
                 # see https://github.com/rail-berkeley/softlearning/issues/60
                 ent_coef = th.exp(self.log_ent_coef.detach())
                 ent_coef_loss = -(self.log_ent_coef * (log_prob + self.target_entropy).detach()).mean()
+                ent_coef_losses.append(ent_coef_loss.item())
             else:
                 ent_coef = self.ent_coef_tensor
 
@@ -293,7 +296,7 @@ class SAC(OffPolicyAlgorithm):
                 actor_actions_mean.append(th.mean(actions_pi.mean(dim=-1)).item())
                 actor_actions_std.append(th.mean(actions_pi.std(dim=-1)).item())
                 # actor_actions_std.append(th.mean(actions_pi.max(dim=-1).values).item())
-                ent_coef_losses.append(log_prob.mean().item())
+                log_probs.append(log_prob.mean().item())
 
             # Optimize the actor
             self.actor.optimizer.zero_grad()
