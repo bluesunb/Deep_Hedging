@@ -30,8 +30,9 @@ class MarketObsExtractor(BaseFeaturesExtractor):
         # nn.BatchNorm1d(3)([[[1,2,3,4],[5,6,7,8]], [[1,3,5,7],[2,4,6,8]]]) = [[[a,..],[a..]], [[b,..],[b,..]]]
 
         modules = []
-        bn_dim = observation_space.shape[0]
-        n_assets = observation_space.shape[0]
+        obs_space = observation_space['obs'] if isinstance(observation_space, gym.spaces.Dict) else observation_space
+        bn_dim = obs_space.shape[0]
+        n_assets = obs_space.shape[0]
 
         if len(net_arch) > 0:
             modules.append(nn.BatchNorm1d(bn_dim if flat_obs else n_assets))
@@ -62,6 +63,8 @@ class MarketObsExtractor(BaseFeaturesExtractor):
         # obs = th.unsqueeze(observations, dim=0)     # (1, bs, n_assets, n_features)
         # obs = self.bn(observations)
         # obs = self.layers(obs)
+        if isinstance(self._observation_space, gym.spaces.Dict):
+            return self.layers(observations['obs'])
         return self.layers(observations)
 
 

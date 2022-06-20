@@ -113,7 +113,6 @@ class DoubleDDPGPolicy(BasePolicy):
         }
         self.actor_kwargs = self.net_args.copy()
         self.critic_kwargs = self.net_args.copy()
-        self.critic2_kwargs = self.net_args.copy()
         self.critic_kwargs.update(
             {
                 "n_critics": n_critics,
@@ -122,6 +121,7 @@ class DoubleDDPGPolicy(BasePolicy):
                 "share_features_extractor": share_features_extractor,
             }
         )
+        self.critic2_kwargs = self.critic_kwargs.copy()
         self.critic2_kwargs.update({
             "net_arch": critic2_arch,
         })

@@ -319,9 +319,10 @@ class SAC(OffPolicyAlgorithm):
         self.logger.record("train/critic2_loss", np.mean(critic2_losses))
         self.logger.record("action/action_mean", np.mean(actor_actions_mean))
         self.logger.record("action/action_std", np.mean(actor_actions_std))
+        self.logger.record("action/log_probs", np.mean(log_probs))
         if len(ent_coef_losses) > 0:
             # self.logger.record("train/ent_coef_loss", np.mean(ent_coef_losses))
-            self.logger.record("train/log_prob", np.mean(ent_coef_losses))
+            self.logger.record("train/ent_coeff_loss", np.mean(ent_coef_losses))
 
     def learn(
         self,

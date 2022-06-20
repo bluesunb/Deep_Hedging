@@ -75,7 +75,9 @@ class BSMarket(gym.Env):
         self.reset()
 
         # moneyness, expiry, volatility, prev_hedge
-        self.observation_space = spaces.Box(0, np.inf, shape=(n_assets, 4) if n_assets > 1 else (4, ))
+        # self.observation_space = spaces.Box(0, np.inf, shape=(n_assets, 4) if n_assets > 1 else (4, ))
+        self.observation_space = spaces.Dict({'obs': spaces.Box(0, np.inf, shape=(n_assets, 4) if n_assets > 1 else (4, )),
+                                              'prev_hedge': spaces.Box(0, 1, shape=(n_assets, ))})
         self.action_space = spaces.Box(0, 1, shape=(n_assets, ))
 
         print("env 'BSMarket was created!")
@@ -117,15 +119,17 @@ class BSMarket(gym.Env):
     def get_obs(self) -> GymObs:
         if self.n_assets > 1:
             moneyness = self.underlying_prices[self.now][:, None] / self.strike      # (n_periods+1, n_assets)
-            prev_hedge = self.hold.copy()[:, None]
         else:
             moneyness = self.underlying_prices[self.now]
-            prev_hedge = self.hold.copy()
+
+        prev_hedge = self.hold.copy()
         expiry = np.full_like(moneyness, self.maturity - self.now*self.dt)
         expiry[np.where(expiry == 0)] = 1e-6
         volatility = np.full_like(moneyness, self.volatility)
+        drift = np.full_like(moneyness, self.drift)
 
-        obs = np.hstack([moneyness, expiry, volatility, prev_hedge])
+        obs = {'obs': np.hstack([moneyness, expiry, volatility, drift]),
+               'prev_hedge': prev_hedge}
 
         return obs
 
