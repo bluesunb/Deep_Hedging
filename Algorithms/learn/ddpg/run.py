@@ -10,7 +10,7 @@ from Env.buffers import CustomDictReplayBuffer
 
 env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config.yaml')
 
-ntb_mode = True
+ntb_mode = False
 double_ddpg = True
 
 env_kwargs.update({
@@ -32,6 +32,7 @@ model_kwargs.update({
 model_kwargs['policy_kwargs'].update({
     'ntb_mode': ntb_mode,
     'double_ddpg': double_ddpg,
+    'n_critics': 2,
 })
 
 learn_kwargs.update({

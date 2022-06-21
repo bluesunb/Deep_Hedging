@@ -95,7 +95,7 @@ class BSMarket(gym.Env):
         if random_drift:
             self.drift = np.round(np.random.rand()*2.0-1.0, 1)
         if random_vol:
-            self.volatility = np.round(np.random.rand(), 1)
+            self.volatility = np.round(0.8*np.random.rand()+0.2, 1)
 
         self.now = 0
         # (n_periods, n_assets)
@@ -270,7 +270,7 @@ class BSMarketEval(BSMarket):
 
         result = []
         for _ in range(n):
-            obs = self.reset()
+            obs = self.reset(random_drift=False, random_vol=False)
             reward, done, info = 0, False, {}
             total_raw_reward = 0
             while not done:
@@ -292,7 +292,7 @@ class BSMarketEval(BSMarket):
 
         result = []
         for _ in range(n):
-            obs = self.reset()
+            obs = self.reset(random_drift=False, random_vol=False)
             reward, done, info = 0, False, {}
             total_raw_reward = 0
             i = 0
