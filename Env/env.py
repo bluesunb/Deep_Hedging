@@ -86,11 +86,16 @@ class BSMarket(gym.Env):
         np.random.seed(seed)
         th.manual_seed(seed)
 
-    def reset(self, initialize="zero") -> GymObs:
+    def reset(self, initialize="zero", random_drift=True, random_vol=True) -> GymObs:
         if initialize == 'zero':
             self.hold = np.zeros(self.n_assets)
         elif initialize == 'std':
             self.hold = np.random.randn(self.n_assets)
+
+        if random_drift:
+            self.drift = np.round(np.random.rand()*2.0-1.0, 1)
+        if random_vol:
+            self.volatility = np.round(np.random.rand(), 1)
 
         self.now = 0
         # (n_periods, n_assets)
@@ -293,9 +298,9 @@ class BSMarketEval(BSMarket):
             i = 0
             while not done:
                 # action = self.delta[i].copy()
-                moneyness, expiry, volatility = [obs[..., j] for j in range(3)]
-                action = european_call_delta(moneyness, expiry, volatility)
-                assert np.all(abs(action - self.delta[i]) < 1e-6)
+                moneyness, expiry, volatility, drift = [obs['obs'][..., j] for j in range(4)]
+                action = european_call_delta(moneyness, expiry, volatility, drift)
+                # assert np.all(abs(action - self.delta[i]) < 1e-6)
                 obs, reward, done, info = self.step(action)
                 total_raw_reward += info['raw_reward']
                 i += 1
