@@ -34,7 +34,9 @@ class BSMarket(gym.Env):
                  payoff: str = "european",
                  gen_name: str = "gbm",
                  reward_mode: str = "pnl",
-                 payoff_coeff: float = 1.0):
+                 payoff_coeff: float = 1.0,
+                 random_drift: bool = False,
+                 random_volatility: bool = False):
 
         super(BSMarket, self).__init__()
         self.n_assets = n_assets
@@ -63,6 +65,9 @@ class BSMarket(gym.Env):
         self.reward_mode = reward_mode      # one of pnl, cashflow
         self.payoff_coeff = payoff_coeff
 
+        self.random_drift = random_drift
+        self.random_volatility = random_volatility
+
         self.now = 0
 
         self.underlying_prices = None
@@ -86,16 +91,16 @@ class BSMarket(gym.Env):
         np.random.seed(seed)
         th.manual_seed(seed)
 
-    def reset(self, initialize="zero", random_drift=True, random_vol=True) -> GymObs:
+    def reset(self, initialize="zero") -> GymObs:
         if initialize == 'zero':
             self.hold = np.zeros(self.n_assets)
         elif initialize == 'std':
             self.hold = np.random.randn(self.n_assets)
 
-        if random_drift:
-            self.drift = np.round(np.random.rand()*2.0-1.0, 1)
-        if random_vol:
-            self.volatility = np.round(0.8*np.random.rand()+0.2, 1)
+        if self.random_drift:
+            self.drift = np.round(np.random.rand()*2.0-1.0, 1)      # [-1.0, 1.0]
+        if self.random_vol:
+            self.volatility = np.round(0.8*np.random.rand()+0.2, 1)     # [0.2, 1.0]
 
         self.now = 0
         # (n_periods, n_assets)

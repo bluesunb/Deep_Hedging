@@ -195,9 +195,14 @@ class DoubleDDPG(TD3):
                 #     mean_cost_loss ** 2
                 # )
                 # std_cost_loss = std_cost_loss.sqrt() * self.std_coeff
-                std_cost_loss = th.abs(
+                # std_cost_loss = th.abs(0.002 -
+                #     self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations))
+                # ).mean()
+
+                std_cost_loss = F.mse_loss(
+                    th.full_like(replay_data.rewards2, 0.002),
                     self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations))
-                ).mean()
+                )
 
                 actor_loss = self.mean_coeff * mean_cost_loss + self.std_coeff * std_cost_loss
                 actor_losses.append(actor_loss.item())
