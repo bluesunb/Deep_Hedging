@@ -38,6 +38,9 @@ class BSMarket(gym.Env):
                  random_drift: bool = False,
                  random_vol: bool = False):
 
+        self.random_drift = random_drift
+        self.random_vol = random_vol
+
         super(BSMarket, self).__init__()
         self.n_assets = n_assets
         self.transaction_cost = cost
@@ -64,9 +67,6 @@ class BSMarket(gym.Env):
         self.price_generator = self.get_price_generator(gen_name)
         self.reward_mode = reward_mode      # one of pnl, cashflow
         self.payoff_coeff = payoff_coeff
-
-        self.random_drift = random_drift
-        self.random_vol = random_vol
 
         self.now = 0
 
@@ -275,7 +275,7 @@ class BSMarketEval(BSMarket):
 
         result = []
         for _ in range(n):
-            obs = self.reset(random_drift=False, random_vol=False)
+            obs = self.reset()
             reward, done, info = 0, False, {}
             total_raw_reward = 0
             while not done:
@@ -297,7 +297,7 @@ class BSMarketEval(BSMarket):
 
         result = []
         for _ in range(n):
-            obs = self.reset(random_drift=False, random_vol=False)
+            obs = self.reset()
             reward, done, info = 0, False, {}
             total_raw_reward = 0
             i = 0
