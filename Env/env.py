@@ -36,7 +36,7 @@ class BSMarket(gym.Env):
                  reward_mode: str = "pnl",
                  payoff_coeff: float = 1.0,
                  random_drift: bool = False,
-                 random_volatility: bool = False):
+                 random_vol: bool = False):
 
         super(BSMarket, self).__init__()
         self.n_assets = n_assets
@@ -66,7 +66,7 @@ class BSMarket(gym.Env):
         self.payoff_coeff = payoff_coeff
 
         self.random_drift = random_drift
-        self.random_volatility = random_volatility
+        self.random_vol = random_vol
 
         self.now = 0
 
