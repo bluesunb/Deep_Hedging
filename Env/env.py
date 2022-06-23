@@ -76,6 +76,7 @@ class BSMarket(gym.Env):
         self.hold = None
         # self.position = None
         self.delta = None
+        self.raw_reward = None
 
         self.reset()
 
@@ -97,10 +98,12 @@ class BSMarket(gym.Env):
         elif initialize == 'std':
             self.hold = np.random.randn(self.n_assets)
 
+        self.raw_reward = np.zeros(self.n_assets)
+
         if self.random_drift:
-            self.drift = np.round(np.random.rand()*2.0-1.0, 1)      # [-1.0, 1.0]
+            self.drift = np.random.choice(np.arange(6)*2/10)      # [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
         if self.random_vol:
-            self.volatility = np.round(0.8*np.random.rand()+0.2, 1)     # [0.2, 1.0]
+            self.volatility = np.random.choice(np.arange(1,6)*2/10)     # [0.2, 0.4, 0.6, 0.8, 1.0]
 
         self.now = 0
         # (n_periods, n_assets)
@@ -195,9 +198,10 @@ class BSMarket(gym.Env):
 
         raw_reward = payoff + price_gain - cost
         reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
-        info['raw_reward'] = raw_reward
-        # info['mean_square_reward'] = np.mean(info['raw_reward'] ** 2)
-        info['mean_square_reward'] = np.std(raw_reward)
+        # info['raw_reward'] = raw_reward
+        new_raw_reward = raw_reward + self.raw_reward
+        info['mean_square_reward'] = np.std(new_raw_reward) - np.std(self.raw_reward)
+        self.raw_reward = new_raw_reward
 
         return self.get_obs(), reward, done, info
 
@@ -221,9 +225,10 @@ class BSMarket(gym.Env):
 
         raw_reward = payoff + price_gain - cost
         reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
-        info['raw_reward'] = raw_reward
-        # info['mean_square_reward'] = np.mean(info['raw_reward'] ** 2)
-        info['mean_square_reward'] = np.std(raw_reward)
+        # info['raw_reward'] = raw_reward
+        new_raw_reward = raw_reward + self.raw_reward
+        info['mean_square_reward'] = np.std(new_raw_reward) - np.std(self.raw_reward)
+        self.raw_reward = new_raw_reward
 
         return self.get_obs(), reward, done, info
 
@@ -277,15 +282,13 @@ class BSMarketEval(BSMarket):
         for _ in range(n):
             obs = self.reset()
             reward, done, info = 0, False, {}
-            total_raw_reward = 0
             while not done:
                 if model:
                     action, _ = model.predict(obs, deterministic=False)
                 else:
                     action = self.action_space.sample()
                 obs, reward, done, info = self.step(action)
-                total_raw_reward += info['raw_reward']
-            result.append(total_raw_reward)
+            result.append(self.raw_reward.copy())
 
         self.reward_mode = tmp
 
@@ -299,7 +302,6 @@ class BSMarketEval(BSMarket):
         for _ in range(n):
             obs = self.reset()
             reward, done, info = 0, False, {}
-            total_raw_reward = 0
             i = 0
             while not done:
                 # action = self.delta[i].copy()
@@ -307,26 +309,28 @@ class BSMarketEval(BSMarket):
                 action = european_call_delta(moneyness, expiry, volatility, drift)
                 # assert np.all(abs(action - self.delta[i]) < 1e-6)
                 obs, reward, done, info = self.step(action)
-                total_raw_reward += info['raw_reward']
                 i += 1
-            result.append(total_raw_reward)
+            result.append(self.raw_reward)
 
         self.reward_mode = tmp
 
         return np.mean(result, axis=0)
 
-    def delta_eval2(self):
-        obs = self.reset()
-        reward, done, info = 0, False, {}
-        total_raw_reward = 0
-        i = 1
-        while not done:
-            action = self.delta[i].copy()
-            # moneyness, expiry, volatility = [obs[..., j] for j in range(3)]
-            # action = european_call_delta(moneyness, expiry, volatility)
-            # assert np.all(abs(action - self.delta[i]) < 1e-5)
-            obs, reward, done, info = self.step(action)
-            total_raw_reward += info['raw_reward']
-            i += 1
+    def delta_eval2(self, reward_mode='cash', n=1):
+        tmp = self.reward_mode
+        self.reward_mode = reward_mode
 
-        return total_raw_reward
+        result = []
+        for _ in range(n):
+            obs = self.reset()
+            reward, done, info = 0, False, {}
+            i = 1
+            while not done:
+                action = self.delta[i].copy()
+                obs, reward, done, info = self.step(action)
+                i += 1
+            result.append(self.raw_reward)
+
+        self.reward_mode = tmp
+
+        return np.mean(result, axis=0)
