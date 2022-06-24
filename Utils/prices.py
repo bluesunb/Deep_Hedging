@@ -6,7 +6,9 @@ from typing import Union, Tuple
 
 
 def geometric_brownian_motion(n_paths: int, n_periods: int,
-                              drift: float, volatility: float, init_price: float, dt: float) -> np.ndarray:
+                              drift: Union[float, np.ndarray],
+                              volatility: Union[float, np.ndarray],
+                              init_price: Union[float, np.ndarray], dt: float) -> np.ndarray:
 
     # z = np.random.standard_normal((n_periods, n_paths))
     z = th.randn(size=(n_periods, n_paths)).numpy()

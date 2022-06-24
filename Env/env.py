@@ -138,8 +138,16 @@ class BSMarket(gym.Env):
         prev_hedge = self.hold.copy()
         expiry = np.full_like(moneyness, self.maturity - self.now*self.dt)
         expiry[np.where(expiry == 0)] = 1e-6
-        volatility = np.full_like(moneyness, self.volatility)
-        drift = np.full_like(moneyness, self.drift)
+
+        if not isinstance(self.volatility, np.ndarray):
+            volatility = np.full_like(moneyness, self.volatility)
+        else:
+            volatility = self.volatility.reshape(-1, 1)
+
+        if not isinstance(self.drift, np.ndarray):
+            drift = np.full_like(moneyness, self.drift)
+        else:
+            drift = self.drift.reshape(-1, 1)
 
         obs = {'obs': np.hstack([moneyness, expiry, volatility, drift]),
                'prev_hedge': prev_hedge}

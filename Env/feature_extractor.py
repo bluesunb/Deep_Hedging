@@ -81,12 +81,10 @@ class BatchNormExtractor(BaseFeaturesExtractor):
         self.bn = nn.BatchNorm1d(observation_space.shape[0])
         self.mlp = nn.Sequential(*create_mlp(features_in, features_out, net_arch, activation_fn))
         self.flatten = nn.Flatten(start_dim=-2, end_dim=-1)
-        self.count = 0
 
     def forward(self, observations: th.Tensor) -> th.Tensor:
         out = self.bn(observations)
         out = self.mlp(out)
-        self.count += 1
         return self.flatten(out)
 
 
