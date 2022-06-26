@@ -79,6 +79,7 @@ class QDDPG(TD3):
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
+        mean_coeff: float = 1.0,
         std_coeff: float = 0.02,
     ):
 
@@ -111,6 +112,7 @@ class QDDPG(TD3):
             _init_setup_model=False,
         )
 
+        self.mean_coeff = mean_coeff
         self.std_coeff = std_coeff
 
         # Use only one critic
@@ -137,6 +139,8 @@ class QDDPG(TD3):
 
         actor_losses, critic_losses, critic2_losses = [], [], []
         mean_cost_losses, std_cost_losses = [], []
+        actor_actions_mean = []
+        actor_actions_std = []
 
         for _ in range(gradient_steps):
             # Increase num of updates
@@ -189,13 +193,18 @@ class QDDPG(TD3):
                 std_cost_loss = th.abs(
                     self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations)).mean() -
                     mean_cost_loss ** 2
-                )
-                std_cost_loss = std_cost_loss.sqrt() * self.std_coeff
+                ).sqrt()
 
-                actor_loss = mean_cost_loss + std_cost_loss
+                actor_loss = self.mean_coeff * mean_cost_loss + self.std_coeff * std_cost_loss
                 actor_losses.append(actor_loss.item())
                 mean_cost_losses.append(-mean_cost_loss.item())
                 std_cost_losses.append(std_cost_loss.item())
+
+                with th.no_grad():
+                    actor_actions = self.actor(replay_data.observations)    # [bs, 1000]
+                    actor_actions_mean.append(th.mean(actor_actions.mean(dim=-1)).item())
+                    # actor_actions_std.append(th.mean(actor_actions.std(dim=-1)).item())
+                    actor_actions_std.append(th.mean(actor_actions.max(dim=-1).values).item())
 
                 # Optimize the actor
                 self.actor.optimizer.zero_grad()
@@ -211,6 +220,9 @@ class QDDPG(TD3):
             self.logger.record("train/actor_loss", np.mean(actor_losses))
             self.logger.record("train/mean_cost_loss", np.mean(mean_cost_losses))
             self.logger.record("train/std_cost_loss", np.mean(std_cost_losses))
+            self.logger.record("train/action_mean", np.mean(actor_actions_mean))
+            self.logger.record("train/action_std", np.mean(actor_actions_std))
+
         self.logger.record("train/critic_loss", np.mean(critic_losses))
         self.logger.record("train/critic2_loss", np.mean(critic2_losses))
 

@@ -135,26 +135,26 @@ class FlattenActor(BasePolicy):
         )
         return data
 
-    def ntb_forward(self, obs: th.Tensor, action: th.Tensor):
-        moneyness, expiry, volatility, prev_hedge = [obs[..., [i]] for i in range(4)]
-        delta = european_call_delta(moneyness, expiry, volatility).to(action)
+    def ntb_forward(self, obs: th.Tensor, action: th.Tensor, prev_hedge: th.Tensor):
+        moneyness, expiry, volatility, drift = [obs[..., i] for i in range(4)]
+        delta = european_call_delta(moneyness, expiry, volatility, drift).to(action)
         # assert th.all(delta - european_call_delta(moneyness, expiry, volatility) < 1e-6)
         # delta = th.tensor(delta).to(action)     # [0, 1]
 
-        lb = delta - F.leaky_relu(action[..., [0]])       # [-1, 1]
-        ub = delta + F.leaky_relu(action[..., [1]])
+        lb = delta - F.leaky_relu(action[..., 0])  # [-1, 1]
+        ub = delta + F.leaky_relu(action[..., 1])
 
-        prev_hedge_scaled = 2.0 * prev_hedge - 1.0      # [-1, 1]
-        hedge = clamp(prev_hedge_scaled, lb, ub)       # [-1, 1]
+        prev_hedge_scaled = 2.0 * prev_hedge - 1.0  # [-1, 1]
+        action = clamp(prev_hedge_scaled, lb, ub)  # [-1, 1]
 
-        return th.clip(hedge, -1., 1.)
+        return th.clip(action, -1., 1.)
 
     def forward(self, obs: th.Tensor) -> th.Tensor:
         features = self.extract_features(obs)
         action = self.mu(features)
 
         if self.ntb_mode:
-            action = self.ntb_forward(obs, action)
+            action = self.ntb_forward(obs['obs'], action, obs['prev_hedge'])
 
         return action
 
