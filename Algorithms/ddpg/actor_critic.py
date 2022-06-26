@@ -54,7 +54,7 @@ class CustomActor(BasePolicy):
                 features_dim=self.features_dim,
                 activation_fn=self.activation_fn,
                 features_extractor=self.features_extractor,
-                # ntb_mode=self.ntb_mode,
+                ntb_mode=self.ntb_mode,
             )
         )
         return data
