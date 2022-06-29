@@ -9,76 +9,89 @@ from stable_baselines3.ddpg import DDPG
 
 from pprint import pprint
 
-env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config.yaml')
+env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config_flatten.yaml')
 
-ntb_mode = True
-double_ddpg = True
+ntb_mode = False    #@param {type:"boolean"}
+double_ddpg = False  #@param {type:"boolean"}
+
+random_drift = False #@param {type:"boolean"}
+random_vol = False  #@param {type:"boolean"}
 
 env_kwargs.update({
-    'n_assets': 1,
+    'drift': 0.0,
+    'volatility': 0.2,
+    'cost': 0.02,
     'reward_fn': 'mean var',
     'reward_fn_kwargs': {},
-    'reward_mode': 'pnl'
+    'reward_mode': 'pnl',
+    'random_drift': random_drift,
+    'random_vol': random_vol,
 })
 
+# state_name = f"d{int(env_kwargs['drift']*10)}v{int(env_kwargs['volatility']*10)}"
+state_name = f"flat_obs"
+# state_name = f"vol_test"
+
+def lr_schedule(left: float):
+    return 1e-3 * (0.1 ** (1 - left ** 2))
+
 model_kwargs.update({
-    # 'buffer_size': 100*10,
-    'buffer_size': 300,
-    # 'learning_starts': 500,
-    'learning_starts': 30,
-    # 'batch_size': 10,
-    # 'batch_size': 15,
-    'batch_size': 15,
-    # 'train_freq': (3, 'episode'),
-    'std_coeff': 0.05,
-    # 'gradient_steps': 30,
+    'buffer_size': 1000,
+    'learning_starts': 300,
+    'batch_size': 300,
+    'learning_rate': lr_schedule,
+    'mean_coeff': 1.0,
+    'std_coeff': 1.0 if ntb_mode else 1.0
 })
 
 model_kwargs['policy_kwargs'].update({
-    'ntb_mode': ntb_mode,
-    'double_ddpg': double_ddpg,
+    'n_critics': 1
 })
 
 learn_kwargs.update({
-    'total_timesteps': 100*50
+    'total_timesteps': 2000
 })
 
 # del model_kwargs['std_coeff']
 
-model_kwargs['policy_kwargs']['one_asset'] = True
-if model_kwargs['policy_kwargs']['one_asset']:
-    model_kwargs['replay_buffer_class'] = None
-    model_kwargs['replay_buffer_kwargs'] = None
-    model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
-        'flat_obs': True
-    })
-
+actor_net_kwargs = {'bn_kwargs': {'num_features':128}}
+critic_net_kwargs = {'bn_kwargs': {'num_features': 129}}
 if ntb_mode:
-    features_out = 64
-    model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
-        'features_out': features_out,
-        'net_arch': [32]
-    })
-
-    actor_net_kwargs = {'bn_kwargs': {'num_features': features_out}}
-    critic_net_kwargs = {'bn_kwargs': {'num_features': features_out+1}}
-    # critic_net_kwargs = {'bn_kwargs': {'num_features': features_out}}
 
     model_kwargs['policy_kwargs'].update({
-        'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 32, 32],
-                     'qf': [(nn.BatchNorm1d, 'bn'), 2]},
+        'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 16, 16, 4],
+                     'qf': [(nn.BatchNorm1d, 'bn'), 48, 32],
+                     'qf2': [(nn.BatchNorm1d, 'bn'), 48, 16]},
         'actor_net_kwargs': actor_net_kwargs,
         'critic_net_kwargs': critic_net_kwargs,
     })
 
+    model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
+        'features_out': 128,
+        'net_arch': [32]
+    })
+
 else:
+    # model_kwargs['policy_kwargs'].update({
+    #     'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 16, 16, 4],
+    #                  'qf': [(nn.BatchNorm1d, 'bn'), 48, 32],
+    #                  'qf2': [(nn.BatchNorm1d, 'bn'), 32, 16]},
+    #     'actor_net_kwargs': actor_net_kwargs,
+    #     'critic_net_kwargs': critic_net_kwargs,
+    # })
+
+    # model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
+    #     'features_out': 128,
+    #     'net_arch': [32]
+    # })
     model_kwargs['policy_kwargs'].update({
         'net_arch': [],
     })
 
     model_kwargs['policy_kwargs']['features_extractor_kwargs'].update({
         'features_out': 2,
-        'net_arch': [32, 64]
+        'net_arch': [32, 64],
+        'flat_obs': True,
     })
 
 # model_kwargs['policy_kwargs']['one_asset'] = (env_kwargs['n_assets']==1)

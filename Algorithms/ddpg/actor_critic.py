@@ -41,8 +41,9 @@ class CustomActor(BasePolicy):
 
         action_dim = 2 if ntb_mode else 1
         actor_net = create_module(features_dim, action_dim,
-                                  net_arch, activation_fn, squash_output=True, net_kwargs=net_kwargs)
+                                  net_arch, activation_fn, squash_output=False, net_kwargs=net_kwargs)
         self.mu = nn.Sequential(*actor_net)
+        self.tanh = nn.Tanh()
         self.flatten = nn.Flatten(-2)  # due to action_dim = 1 so last dim of mu(action) will 1
 
     def _get_constructor_parameters(self) -> Dict[str, Any]:
@@ -64,16 +65,27 @@ class CustomActor(BasePolicy):
 
         moneyness, expiry, volatility, drift = [obs[..., i] for i in range(4)]
         delta = european_call_delta(moneyness, expiry, volatility, drift).to(action)
-        # assert th.all(delta - european_call_delta(moneyness, expiry, volatility) < 1e-6)
-        # delta = th.tensor(delta).to(action)     # [0, 1]
 
-        lb = delta - F.leaky_relu(action[..., 0])       # [-1, 1]
-        ub = delta + F.leaky_relu(action[..., 1])
+        # lb = delta - F.leaky_relu(action[..., 0])       # [-1, 1]
+        # ub = delta + F.leaky_relu(action[..., 1])
+        #
+        # prev_hedge_scaled = 2.0 * prev_hedge - 1.0      # [-1, 1]
+        # action = clamp(prev_hedge_scaled, lb, ub)       # [-1, 1]
+        #
+        # return th.clip(action, -1., 1.)
 
-        prev_hedge_scaled = 2.0 * prev_hedge - 1.0      # [-1, 1]
-        action = clamp(prev_hedge_scaled, lb, ub)       # [-1, 1]
+        delta_unscaled = (delta * 2.0 - 1.0).atanh()    # [-inf ,inf]
 
-        return th.clip(action, -1., 1.)
+        if th.isinf(delta_unscaled).any():
+            raise ValueError('inf value passed!')
+
+        lb = self.tanh(delta - F.leaky_relu(action[..., 0]))   # [-inf, inf] - [0, inf] = [ -inf, inf]
+        ub = self.tanh(delta + F.leaky_relu(action[..., 1]))   # [-inf, inf] + [0, inf] = [-inf, inf]
+
+        prev_hedge_unscaled = 2.0 * prev_hedge - 1.0
+        action = clamp(prev_hedge_unscaled, lb, ub)
+
+        return action
 
     def forward(self, obs: th.Tensor) -> th.Tensor:
         features = self.extract_features(obs)
@@ -82,6 +94,7 @@ class CustomActor(BasePolicy):
         if self.ntb_mode:
             action = self.ntb_forward(obs['obs'], action, obs['prev_hedge'])
         else:
+            action = self.tanh(action)
             action = self.flatten(action)
 
         return action

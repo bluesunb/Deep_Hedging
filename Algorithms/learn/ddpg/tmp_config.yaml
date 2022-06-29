@@ -36,7 +36,7 @@ model_kwargs:
   create_eval_env: false
   device: auto
   env: !!python/name:Env.env.BSMarket ''
-  gamma: 0.99
+  gamma: 1.0
   gradient_steps: -1
   learning_rate: !!python/name:Algorithms.ddpg.config.lr_schedule ''
   learning_starts: 300

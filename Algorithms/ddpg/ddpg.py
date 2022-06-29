@@ -190,19 +190,9 @@ class DoubleDDPG(TD3):
                 mean_cost_loss = -self.critic.q1_forward(replay_data.observations,
                                                          self.actor(replay_data.observations)).mean()
 
-                # std_cost_loss = th.abs(
-                #     self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations)).mean() -
-                #     mean_cost_loss ** 2
-                # )
-                # std_cost_loss = std_cost_loss.sqrt() * self.std_coeff
-                # std_cost_loss = th.abs(0.002 -
-                #     self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations))
-                # ).mean()
-
-                std_cost_loss = F.mse_loss(
-                    th.full_like(replay_data.rewards2, 0.002),
-                    self.critic2.q1_forward(replay_data.observations, self.actor(replay_data.observations))
-                )
+                std_cost_loss = self.critic2.q1_forward(replay_data.observations,
+                                                        self.actor(replay_data.observations))**2
+                std_cost_loss = std_cost_loss.mean().sqrt()
 
                 actor_loss = self.mean_coeff * mean_cost_loss + self.std_coeff * std_cost_loss
                 actor_losses.append(actor_loss.item())
@@ -212,8 +202,8 @@ class DoubleDDPG(TD3):
                 with th.no_grad():
                     actor_actions = self.actor(replay_data.observations)    # [bs, 1000]
                     actor_actions_mean.append(th.mean(actor_actions.mean(dim=-1)).item())
-                    # actor_actions_std.append(th.mean(actor_actions.std(dim=-1)).item())
-                    actor_actions_std.append(th.mean(actor_actions.max(dim=-1).values).item())
+                    actor_actions_std.append(th.mean(actor_actions.std(dim=-1)).item())
+                    # actor_actions_std.append(th.mean(actor_actions.max(dim=-1).values).item())
 
                 # Optimize the actor
                 self.actor.optimizer.zero_grad()
