@@ -74,7 +74,8 @@ class CustomActor(BasePolicy):
         #
         # return th.clip(action, -1., 1.)
 
-        delta_unscaled = (delta * 2.0 - 1.0).atanh()    # [-inf ,inf]
+        scaler = 2.0 - 1e-5
+        delta_unscaled = (delta * scaler - scaler / 2).atanh()
 
         if th.isinf(delta_unscaled).any():
             raise ValueError('inf value passed!')

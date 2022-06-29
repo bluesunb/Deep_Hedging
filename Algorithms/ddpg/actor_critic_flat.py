@@ -62,7 +62,8 @@ class CustomFlatActor(BasePolicy):
         moneyness, expiry, volatility, drift = [obs[..., i] for i in range(4)]
         delta = european_call_delta(moneyness, expiry, volatility, drift).to(action)    # [0, 1]
 
-        delta_unscaled = (delta * 2.0 - 1.0).atanh()
+        scaler = 2.0-1e-5
+        delta_unscaled = (delta*scaler - scaler/2).atanh()
 
         if th.isinf(delta_unscaled).any():
             raise ValueError('inf value passed!')
