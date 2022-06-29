@@ -202,8 +202,8 @@ class QDDPG(TD3):
 
                 with th.no_grad():
                     actor_actions = self.actor(replay_data.observations)    # [bs, 1000]
-                    actor_actions_mean.append(th.mean(actor_actions.mean(dim=-1)).item())
-                    actor_actions_std.append(th.mean(actor_actions.std(dim=-1)).item())
+                    actor_actions_mean.append(actor_actions.mean().item())
+                    actor_actions_std.append(actor_actions.std().item())
                     # actor_actions_std.append(th.mean(actor_actions.max(dim=-1).values).item())
 
                 # Optimize the actor
