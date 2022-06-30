@@ -2,6 +2,7 @@ import numpy as np
 import torch as th
 import gym
 import gym.spaces as spaces
+from gym.utils import seeding
 
 from pprint import pprint
 
@@ -69,6 +70,7 @@ class BSMarket(gym.Env):
         self.payoff_coeff = payoff_coeff
 
         self.now = 0
+        self.reset_count = 0
 
         self.underlying_prices = None
         self.option_prices = None
@@ -89,8 +91,9 @@ class BSMarket(gym.Env):
         print("env 'BSMarket was created!")
 
     def seed(self, seed=None):
-        np.random.seed(seed)
+        self.np_random, seed = seeding.np_random(seed)
         th.manual_seed(seed)
+        return [seed]
 
     def reset(self, initialize="zero") -> GymObs:
         if initialize == 'zero':
@@ -101,11 +104,14 @@ class BSMarket(gym.Env):
         self.raw_reward = np.zeros(self.n_assets)
 
         if self.random_drift:
-            self.drift = np.random.choice(np.arange(6)*2/10)      # [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+            # self.drift = np.random.choice(np.arange(6)*2/10)      # [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+            self.drift = self.reset_count // 15 * 0.2
         if self.random_vol:
-            self.volatility = np.random.choice(np.arange(1,6)*2/10)     # [0.2, 0.4, 0.6, 0.8, 1.0]
+            # self.volatility = np.random.choice(np.arange(1,6)*2/10)     # [0.2, 0.4, 0.6, 0.8, 1.0]
+            self.volatility = 2*self.reset_count % 10 * 0.1 + 0.2
 
         self.now = 0
+        self.reset_count += 1
         # (n_periods, n_assets)
         self.underlying_prices = self.price_generator(self.n_assets,
                                                       self.n_periods,
@@ -119,13 +125,13 @@ class BSMarket(gym.Env):
         expiry[np.where(expiry == 0)] = 1e-6
 
         self.option_prices, self.delta = european_call_price(
-                                                 moneyness,
-                                                 expiry,
-                                                 self.volatility,
-                                                 risk_free_interest=self.risk_free_interest,
-                                                 strike=self.strike,
-                                                 dividend=self.dividend,
-                                                 delta_return=True)
+            moneyness,
+            expiry,
+            self.volatility,
+            risk_free_interest=self.risk_free_interest,
+            strike=self.strike,
+            dividend=self.dividend,
+            delta_return=True)
 
         return self.get_obs()
 

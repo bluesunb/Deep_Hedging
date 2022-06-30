@@ -73,7 +73,7 @@ class BSMarketFlat(gym.Env):
 
         self.reset()
 
-        print("env 'BSMarket' was created!")
+        print("env 'BSMarketFlat' was created!")
 
     def seed(self, seed=None):
         np.random.seed(seed)
