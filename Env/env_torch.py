@@ -2,6 +2,7 @@ import numpy as np
 import torch as th
 import gym
 import gym.spaces as spaces
+from gym.utils import seeding
 
 from pprint import pprint
 
@@ -35,7 +36,12 @@ class BSMarketTorch(gym.Env):
                  payoff: str = "european",
                  gen_name: str = "gbm",
                  reward_mode: str = "pnl",
-                 payoff_coeff: float = 1.0):
+                 payoff_coeff: float = 1.0,
+                 random_drift: bool = False,
+                 random_vol: bool = False):
+
+        self.random_drift = random_drift
+        self.random_vol = random_vol
 
         super(BSMarketTorch, self).__init__()
         self.n_assets = n_assets
@@ -65,6 +71,7 @@ class BSMarketTorch(gym.Env):
         self.payoff_coeff = payoff_coeff
 
         self.now = 0
+        self.reset_count = 0
 
         self.underlying_prices = None
         self.option_prices = None
@@ -72,18 +79,22 @@ class BSMarketTorch(gym.Env):
         self.hold = None
         # self.position = None
         self.delta = None
+        self.raw_reward = None
 
         self.reset()
 
         # moneyness, expiry, volatility, prev_hedge
-        self.observation_space = spaces.Box(0, np.inf, shape=(n_assets, 4))
+        # self.observation_space = spaces.Box(0, np.inf, shape=(n_assets, 4) if n_assets > 1 else (4, ))
+        self.observation_space = spaces.Dict({'obs': spaces.Box(0, np.inf, shape=(n_assets, 4) if n_assets > 1 else (4, )),
+                                              'prev_hedge': spaces.Box(0, 1, shape=(n_assets, ))})
         self.action_space = spaces.Box(0, 1, shape=(n_assets, ))
 
         print("env 'BSMarket was created!")
 
     def seed(self, seed=None):
-        np.random.seed(seed)
+        self.np_random, seed = seeding.np_random(seed)
         th.manual_seed(seed)
+        return [seed]
 
     def reset(self, initialize="zero") -> th.Tensor:
         if initialize == 'zero':
@@ -91,7 +102,17 @@ class BSMarketTorch(gym.Env):
         elif initialize == 'std':
             self.hold = th.randn(self.n_assets)
 
+        self.raw_reward = th.zeros(self.n_assets)
+
+        if self.random_drift:
+            # self.drift = np.random.choice(np.arange(6)*2/10)      # [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+            self.drift = self.reset_count // 5 % 5 * 0.2
+        if self.random_vol:
+            # self.volatility = np.random.choice(np.arange(1,6)*2/10)     # [0.2, 0.4, 0.6, 0.8, 1.0]
+            self.volatility = 2*self.reset_count % 10 * 0.1 + 0.2
+
         self.now = 0
+        self.reset_count += 1
         # (n_periods, n_assets)
         self.underlying_prices = self.price_generator(self.n_assets,
                                                       self.n_periods,
@@ -116,13 +137,27 @@ class BSMarketTorch(gym.Env):
         return self.get_obs()
 
     def get_obs(self) -> th.Tensor:
-        moneyness = self.underlying_prices[self.now][:, None] / self.strike      # (n_periods+1, n_assets)
+        if self.n_assets > 1:
+            moneyness = self.underlying_prices[self.now][:, None] / self.strike      # (n_periods+1, n_assets)
+        else:
+            moneyness = self.underlying_prices[self.now] / self.strike
+
+        prev_hedge = self.hold.clone()
         expiry = th.full_like(moneyness, self.maturity - self.now*self.dt)
         expiry = th.where(expiry==0, th.tensor([1e-6]), expiry)
-        volatility = th.full_like(moneyness, self.volatility)
-        prev_hedge = self.hold[:, None]
 
-        obs = th.cat([moneyness, expiry, volatility, prev_hedge], dim=-1)
+        if isinstance(self.volatility, float):
+            volatility = th.full_like(moneyness, self.volatility)
+        else:
+            volatility = self.volatility.view(-1, 1)
+
+        if isinstance(self.drift, float):
+            drift = th.full_like(moneyness, self.drift)
+        else:
+            drift = self.drift.view(-1, 1)
+
+        obs = {'obs': th.cat([moneyness, expiry, volatility, drift], dim=-1),
+               'prev_hedge': prev_hedge}
 
         return obs
 
@@ -141,8 +176,11 @@ class BSMarketTorch(gym.Env):
         if self.reward_mode == 'pnl':
             step_return = self.pnl_step(action)
 
-        if self.reward_mode == 'cash':
+        elif self.reward_mode == 'cash':
             step_return = self.cashflow_pnl(action)
+
+        else:
+            raise ValueError(f'Env step reward mode error: {self.reward_mode}')
 
         if render:
             self.render()
@@ -165,26 +203,26 @@ class BSMarketTorch(gym.Env):
         self.hold = action.detach()
 
         if self.now == self.n_periods - 1:
-            payoff = option - self.payoff(self.underlying_prices, self.strike) - \
+            payoff = now_option - self.payoff(self.underlying_prices, self.strike) - \
                      self.transaction_cost * underlying * action
             done = True
             info['msg'] = 'MATURITY'
         else:
-            payoff = self.payoff_coeff * (now_option - option)
+            payoff = now_option - option
 
         raw_reward = payoff + price_gain - cost
         reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
-        info['raw_reward'] = to_numpy(raw_reward)
-        info['mean_square_reward'] = np.mean(info['raw_reward'] ** 2)
+        new_raw_reward = raw_reward + self.raw_reward
+        info['mean_square_reward'] = th.std(new_raw_reward) - th.std(self.raw_reward)
+        self.raw_reward = new_raw_reward
 
         return self.get_obs(), reward, done, info
 
     def cashflow_pnl(self, action: th.Tensor) -> GymStepReturn:
         done, info = False, {}
         now_underlying, underlying = self.underlying_prices[self.now:self.now + 2]
-        now_option, option = self.option_prices[self.now:self.now + 2]
 
-        price_gain = now_underlying*(self.hold - action)
+        price_gain = now_underlying * (self.hold - action)
         cost = self.transaction_cost * now_underlying * th.abs(action - self.hold)
         payoff = 0
 
@@ -193,14 +231,16 @@ class BSMarketTorch(gym.Env):
 
         if self.now == self.n_periods - 1:
             payoff = (1 - self.transaction_cost) * underlying * action - \
-                     self.payoff(self.underlying_prices, self.strike)
+                     self.payoff(self.underlying_prices, self.strike) + self.option_prices[0]
+
             done = True
             info['msg'] = 'MATURITY'
 
-        raw_reward = payoff + price_gain + cost
+        raw_reward = payoff + price_gain - cost
         reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
-        info['raw_reward'] = to_numpy(raw_reward)
-        info['mean_square_reward'] = np.mean(info['raw_reward'] ** 2)
+        new_raw_reward = raw_reward + self.raw_reward
+        info['mean_square_reward'] = np.std(new_raw_reward) - np.std(self.raw_reward)
+        self.raw_reward = new_raw_reward
 
         return self.get_obs(), reward, done, info
 
@@ -230,6 +270,8 @@ class BSMarketTorch(gym.Env):
             return rewards_torch.pnl_entropic_reward
         elif reward_fn == 'raw':
             return rewards_torch.raw_reward
+        elif reward_fn == 'cvar':
+            return rewards_torch.cvar_reward
         else:
             raise ValueError(f"reward function not found: {reward_fn}")
 
@@ -238,53 +280,64 @@ class BSMarketEvalTorch(BSMarketTorch):
     def __init__(self, **env_kwargs):
         super(BSMarketEvalTorch, self).__init__(**env_kwargs)
 
-    def step(self, action: th.Tensor, render=False) -> GymStepReturn:
-        new_obs, reward, done, info = super(BSMarketEvalTorch, self).step(action, render)
-        reward -= self.transaction_cost * th.sqrt(info['mean_square_reward'] - reward ** 2)
-        return new_obs, reward, done, info
 
-    def pnl_eval(self, model=None):
-        obs = self.reset()
-        reward, done, info = 0, False, {}
-        total_raw_reward = 0
-        while not done:
-            if model:
-                action, _ = model.predict(obs, deterministic=False)
-            else:
-                action = self.action_space.sample()
-            obs, reward, done, info = self.step(action)
-            total_raw_reward += info['raw_reward']
+    def eval(self, model=None, reward_mode='cash', n=1):
+        tmp = self.reward_mode
+        self.reward_mode = reward_mode
 
-        return total_raw_reward
+        result = []
+        for _ in range(n):
+            obs = self.reset()
+            reward, done, info = 0, False, {}
+            while not done:
+                if model:
+                    action, _ = model.predict(obs, deterministic=False)
+                else:
+                    action = self.action_space.sample()
+                obs, reward, done, info = self.step(action)
+            result.append(self.raw_reward.copy())
 
-    def delta_eval(self):
-        obs = self.reset()
-        reward, done, info = 0, False, {}
-        total_raw_reward = 0
-        i = 0
-        while not done:
-            # action = self.delta[i].copy()
-            moneyness, expiry, volatility = [obs[..., j] for j in range(3)]
-            action = european_call_delta(moneyness, expiry, volatility)
-            assert np.all(abs(action - self.delta[i]) < 1e-5)
-            obs, reward, done, info = self.step(action)
-            total_raw_reward += info['raw_reward']
-            i += 1
+        self.reward_mode = tmp
 
-        return total_raw_reward
+        return np.mean(result, axis=0)
 
-    def delta_eval2(self):
-        obs = self.reset()
-        reward, done, info = 0, False, {}
-        total_raw_reward = 0
-        i = 1
-        while not done:
-            action = self.delta[i].copy()
-            # moneyness, expiry, volatility = [obs[..., j] for j in range(3)]
-            # action = european_call_delta(moneyness, expiry, volatility)
-            # assert np.all(abs(action - self.delta[i]) < 1e-5)
-            obs, reward, done, info = self.step(action)
-            total_raw_reward += info['raw_reward']
-            i += 1
+    def delta_eval(self, reward_mode='cash', n=1):
+        tmp = self.reward_mode
+        self.reward_mode = reward_mode
 
-        return total_raw_reward
+        result = []
+        for _ in range(n):
+            obs = self.reset()
+            reward, done, info = 0, False, {}
+            i = 0
+            while not done:
+                # action = self.delta[i].copy()
+                moneyness, expiry, volatility, drift = [obs['obs'][..., j] for j in range(4)]
+                action = european_call_delta(moneyness, expiry, volatility, drift)
+                # assert np.all(abs(action - self.delta[i]) < 1e-6)
+                obs, reward, done, info = self.step(action)
+                i += 1
+            result.append(self.raw_reward)
+
+        self.reward_mode = tmp
+
+        return np.mean(result, axis=0)
+
+    def delta_eval2(self, reward_mode='cash', n=1):
+        tmp = self.reward_mode
+        self.reward_mode = reward_mode
+
+        result = []
+        for _ in range(n):
+            obs = self.reset()
+            reward, done, info = 0, False, {}
+            i = 1
+            while not done:
+                action = self.delta[i].copy()
+                obs, reward, done, info = self.step(action)
+                i += 1
+            result.append(self.raw_reward)
+
+        self.reward_mode = tmp
+
+        return np.mean(result, axis=0)

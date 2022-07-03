@@ -139,7 +139,7 @@ class BSMarket(gym.Env):
         if self.n_assets > 1:
             moneyness = self.underlying_prices[self.now][:, None] / self.strike      # (n_periods+1, n_assets)
         else:
-            moneyness = self.underlying_prices[self.now]
+            moneyness = self.underlying_prices[self.now] / self.strike
 
         prev_hedge = self.hold.copy()
         expiry = np.full_like(moneyness, self.maturity - self.now*self.dt)
@@ -212,7 +212,6 @@ class BSMarket(gym.Env):
 
         raw_reward = payoff + price_gain - cost
         reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
-        # info['raw_reward'] = raw_reward
         new_raw_reward = raw_reward + self.raw_reward
         info['mean_square_reward'] = np.std(new_raw_reward) - np.std(self.raw_reward)
         self.raw_reward = new_raw_reward
@@ -239,7 +238,6 @@ class BSMarket(gym.Env):
 
         raw_reward = payoff + price_gain - cost
         reward = self.reward_fn(raw_reward, **self.reward_fn_kwargs)
-        # info['raw_reward'] = raw_reward
         new_raw_reward = raw_reward + self.raw_reward
         info['mean_square_reward'] = np.std(new_raw_reward) - np.std(self.raw_reward)
         self.raw_reward = new_raw_reward
@@ -281,12 +279,6 @@ class BSMarket(gym.Env):
 class BSMarketEval(BSMarket):
     def __init__(self, **env_kwargs):
         super(BSMarketEval, self).__init__(**env_kwargs)
-        # self.reward_mode = 'cash'
-        # self.reward_fn = self.get_reward_fn('raw')
-
-    # def step(self, action: np.ndarray, render=False) -> GymStepReturn:
-    #     new_obs, reward, done, info = super(BSMarketEval, self).step(action, render)
-    #     return new_obs, info['raw_reward'], done, {}
 
     def eval(self, model=None, reward_mode='cash', n=1):
         tmp = self.reward_mode

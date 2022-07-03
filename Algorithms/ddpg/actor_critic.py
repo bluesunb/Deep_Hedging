@@ -66,22 +66,14 @@ class CustomActor(BasePolicy):
         moneyness, expiry, volatility, drift = [obs[..., i] for i in range(4)]
         delta = european_call_delta(moneyness, expiry, volatility, drift).to(action)
 
-        # lb = delta - F.leaky_relu(action[..., 0])       # [-1, 1]
-        # ub = delta + F.leaky_relu(action[..., 1])
-        #
-        # prev_hedge_scaled = 2.0 * prev_hedge - 1.0      # [-1, 1]
-        # action = clamp(prev_hedge_scaled, lb, ub)       # [-1, 1]
-        #
-        # return th.clip(action, -1., 1.)
-
         scaler = 2.0 - 1e-5
         delta_unscaled = (delta * scaler - scaler / 2).atanh()
 
         if th.isinf(delta_unscaled).any():
             raise ValueError('inf value passed!')
 
-        lb = self.tanh(delta - F.leaky_relu(action[..., 0]))   # [-inf, inf] - [0, inf] = [ -inf, inf]
-        ub = self.tanh(delta + F.leaky_relu(action[..., 1]))   # [-inf, inf] + [0, inf] = [-inf, inf]
+        lb = self.tanh(delta_unscaled - F.leaky_relu(action[..., 0]))   # [-inf, inf] - [0, inf] = [ -inf, inf]
+        ub = self.tanh(delta_unscaled + F.leaky_relu(action[..., 1]))   # [-inf, inf] + [0, inf] = [-inf, inf]
 
         prev_hedge_unscaled = 2.0 * prev_hedge - 1.0
         action = clamp(prev_hedge_unscaled, lb, ub)
