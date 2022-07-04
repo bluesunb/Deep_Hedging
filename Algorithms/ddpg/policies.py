@@ -13,9 +13,10 @@ from stable_baselines3.common.type_aliases import Schedule
 from stable_baselines3.td3.policies import BasePolicy
 
 from Algorithms.ddpg.actor_critic import (
-    CustomActor, FlattenActor,
-    CustomContinuousCritic, FlattenCritic
+    CustomActor, CustomContinuousCritic
 )
+
+from Algorithms.ddpg.actor_critic_flat import CustomFlatActor, CustomFlatCritic
 
 
 def get_actor_critic_arch(net_arch: Union[List[int], Dict[str, List[int]]]) -> Tuple[List[int], ...]:
@@ -199,22 +200,22 @@ class DoubleDDPGPolicy(BasePolicy):
         )
         return data
 
-    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Union[CustomActor, FlattenActor]:
+    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Union[CustomActor, CustomFlatActor]:
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)
         if self.one_asset:
-            return FlattenActor(**actor_kwargs, ntb_mode=self.ntb_mode).to(self.device)
+            return CustomFlatActor(**actor_kwargs, ntb_mode=self.ntb_mode).to(self.device)
         return CustomActor(**actor_kwargs, ntb_mode=self.ntb_mode).to(self.device)
 
-    def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Union[CustomContinuousCritic, FlattenCritic]:
+    def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Union[CustomContinuousCritic, CustomFlatCritic]:
         critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)
         if self.one_asset:
-            return FlattenCritic(**critic_kwargs).to(self.device)
+            return CustomFlatCritic(**critic_kwargs).to(self.device)
         return CustomContinuousCritic(**critic_kwargs).to(self.device)
 
-    def make_critic2(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Union[CustomContinuousCritic, FlattenCritic]:
+    def make_critic2(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Union[CustomContinuousCritic, CustomFlatCritic]:
         critic2_kwargs = self._update_features_extractor(self.critic2_kwargs, features_extractor)
         if self.one_asset:
-            return FlattenCritic(**critic2_kwargs).to(self.device)
+            return CustomFlatCritic(**critic2_kwargs).to(self.device)
         return CustomContinuousCritic(**critic2_kwargs).to(self.device)
 
     def forward(self, observation: th.Tensor, deterministic: bool = False) -> th.Tensor:
@@ -223,7 +224,11 @@ class DoubleDDPGPolicy(BasePolicy):
     def _predict(self, observation: th.Tensor, deterministic: bool = False) -> th.Tensor:
         # Note: the deterministic deterministic parameter is ignored in the case of TD3.
         #   Predictions are always deterministic.
-        return self.actor(observation)
+        if not self.ntb_mode:
+            obs = {'obs': th.cat([observation['obs'], observation['prev_hedge'].unsqueeze(dim=-1)])}
+        else:
+            obs = observation.copy()
+        return self.actor(obs)
 
     def set_training_mode(self, mode: bool) -> None:
         """
