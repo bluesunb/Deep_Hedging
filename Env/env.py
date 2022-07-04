@@ -37,7 +37,8 @@ class BSMarket(gym.Env):
                  reward_mode: str = "pnl",
                  payoff_coeff: float = 1.0,
                  random_drift: bool = False,
-                 random_vol: bool = False):
+                 random_vol: bool = False,
+                 ntb_mode: bool = False):
 
         self.random_drift = random_drift
         self.random_vol = random_vol
@@ -84,9 +85,12 @@ class BSMarket(gym.Env):
 
         # moneyness, expiry, volatility, prev_hedge
         # self.observation_space = spaces.Box(0, np.inf, shape=(n_assets, 4) if n_assets > 1 else (4, ))
-        self.observation_space = spaces.Dict({'obs': spaces.Box(0, np.inf, shape=(n_assets, 4) if n_assets > 1 else (4, )),
-                                              'prev_hedge': spaces.Box(0, 1, shape=(n_assets, ))})
-        self.action_space = spaces.Box(0, 1, shape=(n_assets, ))
+        self.ntb_mode = ntb_mode
+        features_dim = 4 if self.ntb_mode else 5
+        self.observation_space = \
+            spaces.Dict({'obs': spaces.Box(0, np.inf, shape=(n_assets, features_dim) if n_assets > 1 else (features_dim, )),
+                         'prev_hedge': spaces.Box(0, 1, shape=(n_assets, ))})
+        self.action_space = spaces.Box(-1., 1., shape=(n_assets, ))
 
         print("env 'BSMarket was created!")
 
@@ -155,8 +159,11 @@ class BSMarket(gym.Env):
         else:
             drift = self.drift.reshape(-1, 1)
 
-        obs = {'obs': np.hstack([moneyness, expiry, volatility, drift]),
-               'prev_hedge': prev_hedge}
+        if self.ntb_mode:
+            obs = {'obs': np.hstack([moneyness, expiry, volatility, drift]),
+                   'prev_hedge': prev_hedge}
+        else:
+            obs = {'obs': np.hstack[moneyness, expiry, volatility, drift, prev_hedge[:, None]]}
 
         return obs
 
@@ -166,9 +173,9 @@ class BSMarket(gym.Env):
 
     def step(self, action: np.ndarray, render=False) -> GymStepReturn:
         """
-        step - reward는 scalar로 전달되어야 하므로 n_assets의 reward에 대해 mean-variance measure를 취함
+        Note! reward must be returned in scalar
         """
-        assert np.all(action >= 0) and np.all(action <= 1), f'min:{np.min(action)}, max:{np.max(action)}'
+        # assert np.all(action >= 0) and np.all(action <= 1), f'min:{np.min(action)}, max:{np.max(action)}'
         if len(action.shape) > 1:
             action = action.flatten()
 

@@ -222,13 +222,7 @@ class DoubleDDPGPolicy(BasePolicy):
         return self._predict(observation, deterministic=deterministic)
 
     def _predict(self, observation: th.Tensor, deterministic: bool = False) -> th.Tensor:
-        # Note: the deterministic deterministic parameter is ignored in the case of TD3.
-        #   Predictions are always deterministic.
-        if not self.ntb_mode:
-            obs = {'obs': th.cat([observation['obs'], observation['prev_hedge'].unsqueeze(dim=-1)])}
-        else:
-            obs = observation.copy()
-        return self.actor(obs)
+        return self.actor(observation)
 
     def set_training_mode(self, mode: bool) -> None:
         """

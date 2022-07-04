@@ -40,7 +40,8 @@ class CustomActor(BasePolicy):
         self.ntb_mode = ntb_mode
 
         action_dim = 2 if ntb_mode else 1
-        actor_net = create_module(features_dim, action_dim,
+        in_features = features_dim if ntb_mode else features_dim + 1
+        actor_net = create_module(in_features, action_dim,
                                   net_arch, activation_fn, squash_output=False, net_kwargs=net_kwargs)
         self.mu = nn.Sequential(*actor_net)
         self.tanh = nn.Tanh()
@@ -61,22 +62,15 @@ class CustomActor(BasePolicy):
         return data
 
     def ntb_forward(self, obs: th.Tensor, action: th.Tensor, prev_hedge: th.Tensor):
+        # policy.unscaled_action() 은 action_space = [-1, 1] 일 때 scaled_action을 그대로 리턴
         # prev_hedge = obs[..., 3]
 
         moneyness, expiry, volatility, drift = [obs[..., i] for i in range(4)]
         delta = european_call_delta(moneyness, expiry, volatility, drift).to(action)
+        lb = delta - F.leaky_relu(action[..., 0])
+        ub = delta + F.leaky_relu(action[..., 1])
 
-        scaler = 2.0 - 1e-5
-        delta_unscaled = (delta * scaler - scaler / 2).atanh()
-
-        if th.isinf(delta_unscaled).any():
-            raise ValueError('inf value passed!')
-
-        lb = self.tanh(delta_unscaled - F.leaky_relu(action[..., 0]))   # [-inf, inf] - [0, inf] = [ -inf, inf]
-        ub = self.tanh(delta_unscaled + F.leaky_relu(action[..., 1]))   # [-inf, inf] + [0, inf] = [-inf, inf]
-
-        prev_hedge_unscaled = 2.0 * prev_hedge - 1.0
-        action = clamp(prev_hedge_unscaled, lb, ub)
+        action = clamp(prev_hedge, lb, ub)
 
         return action
 
