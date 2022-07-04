@@ -92,8 +92,7 @@ class BSMarket(gym.Env):
                              'prev_hedge': spaces.Box(0, 1, shape=(n_assets, ))})
         else:
             self.observation_space = \
-                spaces.Dict({'obs': spaces.Box(0, np.inf, shape=(n_assets, 5) if n_assets > 1 else (5,)),
-                             'prev_hedge': spaces.Box(0, 1, shape=(n_assets,))})
+                spaces.Dict({'obs': spaces.Box(0, np.inf, shape=(n_assets, 5) if n_assets > 1 else (5,))})
 
         self.action_space = spaces.Box(-1., 1., shape=(n_assets, ))
 
