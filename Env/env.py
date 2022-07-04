@@ -167,8 +167,7 @@ class BSMarket(gym.Env):
             obs = {'obs': np.hstack([moneyness, expiry, volatility, drift]),
                    'prev_hedge': prev_hedge}
         else:
-            obs = {'obs': np.hstack([moneyness, expiry, volatility, drift, prev_hedge[:, None]]),
-                   'prev_hedge': prev_hedge}
+            obs = {'obs': np.hstack([moneyness, expiry, volatility, drift, prev_hedge[:, None]])}
 
         return obs
 
