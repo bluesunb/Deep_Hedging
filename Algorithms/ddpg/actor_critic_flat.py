@@ -59,7 +59,7 @@ class CustomFlatActor(BasePolicy):
         return data
 
     def ntb_forward(self, obs: th.Tensor, action: th.Tensor, prev_hedge: th.Tensor):
-        moneyness, expiry, volatility, drift = [obs[..., i] for i in range(4)]
+        moneyness, expiry, volatility, drift = [obs[..., [i]] for i in range(4)]
         delta = european_call_delta(moneyness, expiry, volatility, drift).to(action)    # [0, 1]
 
         scaler = 2.0-1e-5
@@ -68,8 +68,8 @@ class CustomFlatActor(BasePolicy):
         if th.isinf(delta_unscaled).any():
             raise ValueError('inf value passed!')
 
-        lb = self.tanh(delta - F.leaky_relu(action[..., 0]))   # [0, 1] - [-0.a, 1] = [-1, 1.a]
-        ub = self.tanh(delta + F.leaky_relu(action[..., 1]))   # [0, 1] + [-0.a, 1] = [-0.a, 1.a]
+        lb = self.tanh(delta - F.leaky_relu(action[..., [0]]))   # [0, 1] - [-0.a, 1] = [-1, 1.a]
+        ub = self.tanh(delta + F.leaky_relu(action[..., [1]]))   # [0, 1] + [-0.a, 1] = [-0.a, 1.a]
 
         prev_hedge_unscaled = 2.0 * prev_hedge - 1.0
         action = clamp(prev_hedge_unscaled, lb, ub)
