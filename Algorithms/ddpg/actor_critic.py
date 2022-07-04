@@ -40,8 +40,7 @@ class CustomActor(BasePolicy):
         self.ntb_mode = ntb_mode
 
         action_dim = 2 if ntb_mode else 1
-        in_features = features_dim if ntb_mode else features_dim + 1
-        actor_net = create_module(in_features, action_dim,
+        actor_net = create_module(features_dim, action_dim,
                                   net_arch, activation_fn, squash_output=False, net_kwargs=net_kwargs)
         self.mu = nn.Sequential(*actor_net)
         self.tanh = nn.Tanh()
