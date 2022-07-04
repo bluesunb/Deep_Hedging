@@ -81,11 +81,11 @@ class BSMarket(gym.Env):
         self.delta = None
         self.raw_reward = None
 
+        self.ntb_mode = ntb_mode
         self.reset()
 
         # moneyness, expiry, volatility, prev_hedge
         # self.observation_space = spaces.Box(0, np.inf, shape=(n_assets, 4) if n_assets > 1 else (4, ))
-        self.ntb_mode = ntb_mode
         features_dim = 4 if self.ntb_mode else 5
         self.observation_space = \
             spaces.Dict({'obs': spaces.Box(0, np.inf, shape=(n_assets, features_dim) if n_assets > 1 else (features_dim, )),
@@ -163,7 +163,7 @@ class BSMarket(gym.Env):
             obs = {'obs': np.hstack([moneyness, expiry, volatility, drift]),
                    'prev_hedge': prev_hedge}
         else:
-            obs = {'obs': np.hstack[moneyness, expiry, volatility, drift, prev_hedge[:, None]]}
+            obs = {'obs': np.hstack([moneyness, expiry, volatility, drift, prev_hedge[:, None]])}
 
         return obs
 
