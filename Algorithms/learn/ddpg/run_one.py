@@ -11,7 +11,7 @@ from pprint import pprint
 
 env_kwargs, model_kwargs, learn_kwargs = config.load_config('tmp_config_flatten.yaml')
 
-ntb_mode = False    #@param {type:"boolean"}
+ntb_mode = True    #@param {type:"boolean"}
 double_ddpg = False  #@param {type:"boolean"}
 
 random_drift = False #@param {type:"boolean"}
@@ -36,20 +36,21 @@ def lr_schedule(left: float):
     return 1e-3 * (0.1 ** (1 - left ** 2))
 
 model_kwargs.update({
-    'buffer_size': 1000,
-    'learning_starts': 300,
-    'batch_size': 300,
+    'buffer_size': 3000,
+    'learning_starts': 200,
+    'batch_size': 100,
     'learning_rate': lr_schedule,
     'mean_coeff': 1.0,
     'std_coeff': 1.0 if ntb_mode else 1.0
 })
 
 model_kwargs['policy_kwargs'].update({
-    'n_critics': 1
+    'n_critics': 1,
+    'ntb_mode':ntb_mode
 })
 
 learn_kwargs.update({
-    'total_timesteps': 2000
+    'total_timesteps': 10000
 })
 
 # del model_kwargs['std_coeff']
@@ -59,9 +60,9 @@ critic_net_kwargs = {'bn_kwargs': {'num_features': 129}}
 if ntb_mode:
 
     model_kwargs['policy_kwargs'].update({
-        'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 16, 16, 4],
-                     'qf': [(nn.BatchNorm1d, 'bn'), 48, 32],
-                     'qf2': [(nn.BatchNorm1d, 'bn'), 48, 16]},
+        'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 4],
+                     'qf': [(nn.BatchNorm1d, 'bn'), 4,],
+                     'qf2': [(nn.BatchNorm1d, 'bn'), 4,]},
         'actor_net_kwargs': actor_net_kwargs,
         'critic_net_kwargs': critic_net_kwargs,
     })
@@ -73,9 +74,9 @@ if ntb_mode:
 
 else:
     # model_kwargs['policy_kwargs'].update({
-    #     'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 16, 16, 4],
-    #                  'qf': [(nn.BatchNorm1d, 'bn'), 48, 32],
-    #                  'qf2': [(nn.BatchNorm1d, 'bn'), 32, 16]},
+    #     'net_arch': {'pi': [(nn.BatchNorm1d, 'bn'), 16],
+    #                  'qf': [(nn.BatchNorm1d, 'bn'), 32],
+    #                  'qf2': [(nn.BatchNorm1d, 'bn'), 24]},
     #     'actor_net_kwargs': actor_net_kwargs,
     #     'critic_net_kwargs': critic_net_kwargs,
     # })
@@ -93,8 +94,6 @@ else:
         'net_arch': [32, 64],
         'flat_obs': True,
     })
-
-# model_kwargs['policy_kwargs']['one_asset'] = (env_kwargs['n_assets']==1)
 
 config.reconstruct_config(env_kwargs, model_kwargs, learn_kwargs)
 # config.save_config('tmp_config.yaml', env_kwargs, model_kwargs, learn_kwargs)

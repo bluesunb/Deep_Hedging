@@ -1,0 +1,269 @@
+env_kwargs:
+  cost: 0.02
+  dividend: 0.0
+  drift: 0.0
+  freq: 1
+  gen_name: gbm
+  init_price: 1.0
+  maturity: 30
+  n_assets: 1000
+  payoff: european
+  payoff_coeff: 1.0
+  period_unit: 365
+  random_drift: false
+  random_vol: false
+  reward_fn: mean var
+  reward_fn_kwargs: {}
+  reward_mode: pnl
+  risk_free_interest: 0.0
+  strike: 1.0
+  volatility: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - !!python/name:numpy.ndarray ''
+    - !!python/tuple
+      - 0
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple
+      - 1000
+    - !!python/object/apply:numpy.dtype
+      args:
+      - f8
+      - false
+      - true
+      state: !!python/tuple
+      - 3
+      - <
+      - null
+      - null
+      - null
+      - -1
+      - -1
+      - 0
+    - false
+    - !!binary |
+      mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+a
+      mZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZ
+      mZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZ
+      mZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZ
+      mZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZ
+      mck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ
+      2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZ
+      P5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/
+      mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+a
+      mZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZ
+      mZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZ
+      mZmZ2T+amZmZmZnZPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMz
+      MzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMz
+      M+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz
+      4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPj
+      PzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/
+      NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z+a
+      mZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZ
+      mZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZ
+      mZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZ
+      mZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZ
+      mek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ
+      6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADw
+      PwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/
+      AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8A
+      AAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAA
+      AAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAA
+      AAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAA
+      AADwP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZ
+      mck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZ
+      yT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJ
+      P5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/
+      mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+a
+      mZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZ2T+amZmZmZnZP5qZ
+      mZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZ
+      mZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZ
+      mZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZ
+      mdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ
+      2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZ
+      P5qZmZmZmdk/mpmZmZmZ2T80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/
+      NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80
+      MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQz
+      MzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMz
+      MzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMz
+      MzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMz
+      M+M/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ
+      6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnp
+      P5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/
+      mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+a
+      mZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZ
+      mZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAA
+      AAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAA
+      AADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAA
+      APA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA
+      8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADw
+      PwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/
+      AAAAAAAA8D+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+a
+      mZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZ
+      mZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZ
+      mZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZ
+      mZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZ
+      mck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmdk/mpmZmZmZ
+      2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZ
+      P5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/
+      mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+a
+      mZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZ
+      mZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZ
+      mZmZ2T+amZmZmZnZP5qZmZmZmdk/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMz
+      MzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMz
+      M+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz
+      4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPj
+      PzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/
+      NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80
+      MzMzMzPjP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZ
+      mZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZ
+      mZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZ
+      mZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZ
+      mek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ
+      6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADw
+      PwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/
+      AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8A
+      AAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAA
+      AAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAA
+      AAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAA
+      AADwPwAAAAAAAPA/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZ
+      mck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZ
+      yT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJ
+      P5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/
+      mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+a
+      mZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnZP5qZ
+      mZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZ
+      mZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZ
+      mZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZ
+      mdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ
+      2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZ
+      P5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/
+      NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80
+      MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQz
+      MzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMz
+      MzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMz
+      MzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMz
+      M+M/NDMzMzMz4z+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ
+      6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnp
+      P5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/
+      mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+a
+      mZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZ
+      mZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T8AAAAAAADwPwAAAAAAAPA/AAAA
+      AAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAA
+      AADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAA
+      APA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA
+      8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADw
+      PwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/
+      AAAAAAAA8D8AAAAAAADwP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+a
+      mZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZ
+      mZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZ
+      mZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZ
+      mZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZ
+      mck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZyT+amZmZmZnJP5qZmZmZmck/mpmZmZmZ
+      2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZ
+      P5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/
+      mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+a
+      mZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZ
+      mZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZ
+      mZmZ2T+amZmZmZnZP5qZmZmZmdk/mpmZmZmZ2T80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMz
+      MzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMz
+      M+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz
+      4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPj
+      PzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/
+      NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80MzMzMzPjPzQzMzMzM+M/NDMzMzMz4z80
+      MzMzMzPjPzQzMzMzM+M/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZ
+      mZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZ
+      mZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZ
+      mZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZ
+      mek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ
+      6T+amZmZmZnpP5qZmZmZmek/mpmZmZmZ6T+amZmZmZnpP5qZmZmZmek/AAAAAAAA8D8AAAAAAADw
+      PwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/
+      AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8A
+      AAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAA
+      AAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAA
+      AAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAAAADwPwAAAAAAAPA/AAAAAAAA8D8AAAAA
+      AADwPwAAAAAAAPA/AAAAAAAA8D8=
+kwargs: {}
+learn_kwargs:
+  callback: !!python/name:Algorithms.ddpg.callbacks.ReportCallbacks ''
+  eval_env: !!python/name:Env.env.BSMarketEval ''
+  eval_freq: 30
+  eval_log_path: ../logs/tb_logs/vol_test/ddpg_220626-1403_1
+  log_interval: 30
+  n_eval_episodes: 1
+  reset_num_timesteps: true
+  tb_log_name: ddpg_220626-1403
+  total_timesteps: 4000
+model_kwargs:
+  action_noise: !!python/object:stable_baselines3.common.noise.NormalActionNoise
+    _mu: 0.0
+    _sigma: 0.1
+  batch_size: 15
+  buffer_size: 300
+  create_eval_env: false
+  device: auto
+  env: !!python/name:Env.env.BSMarket ''
+  gamma: 1.0
+  gradient_steps: -1
+  learning_rate: !!python/name:__main__.lr_schedule ''
+  learning_starts: 300
+  mean_coeff: 1.0
+  optimize_memory_usage: false
+  policy: !!python/name:Algorithms.ddpg.policies.DoubleDDPGPolicy ''
+  policy_kwargs:
+    activation_fn: &id001 !!python/name:torch.nn.modules.activation.ReLU ''
+    actor_net_kwargs:
+      bn_kwargs:
+        num_features: 1000
+    critic_net_kwargs:
+      bn_kwargs:
+        num_features: 1000
+    double_ddpg: true
+    features_extractor_class: !!python/name:Env.feature_extractor.MarketObsExtractor ''
+    features_extractor_kwargs:
+      activation_fn: *id001
+      features_in: 4
+      features_out: 128
+      flat_obs: false
+      last_activation_fn: *id001
+      net_arch:
+      - 32
+    n_critics: 2
+    net_arch:
+      pi:
+      - !!python/tuple
+        - &id002 !!python/name:torch.nn.modules.batchnorm.BatchNorm1d ''
+        - bn
+      - 16
+      - 16
+      - 4
+      qf:
+      - !!python/tuple
+        - *id002
+        - bn
+      - 48
+      - 32
+      qf2:
+      - !!python/tuple
+        - *id002
+        - bn
+      - 32
+      - 16
+    normalize_images: false
+    ntb_mode: false
+    one_asset: false
+    optimizer_class: !!python/name:torch.optim.adam.Adam ''
+    optimizer_kwargs: null
+    share_features_extractor: true
+  replay_buffer_class: !!python/name:Env.buffers.CustomDictReplayBuffer ''
+  replay_buffer_kwargs: {}
+  seed: 42
+  std_coeff: 1.0
+  tau: 0.005
+  tensorboard_log: ../logs/tb_logs/vol_test
+  train_freq: !!python/tuple
+  - 1
+  - episode
+  verbose: 1

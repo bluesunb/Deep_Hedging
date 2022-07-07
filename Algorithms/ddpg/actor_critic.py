@@ -43,7 +43,6 @@ class CustomActor(BasePolicy):
         actor_net = create_module(features_dim, action_dim,
                                   net_arch, activation_fn, squash_output=False, net_kwargs=net_kwargs)
         self.mu = nn.Sequential(*actor_net)
-        self.tanh = nn.Tanh()
         self.flatten = nn.Flatten(-2)  # due to action_dim = 1 so last dim of mu(action) will 1
 
     def _get_constructor_parameters(self) -> Dict[str, Any]:
@@ -80,7 +79,6 @@ class CustomActor(BasePolicy):
         if self.ntb_mode:
             action = self.ntb_forward(obs['obs'], action, obs['prev_hedge'])
         else:
-            action = self.tanh(action)
             action = self.flatten(action)
 
         return action
