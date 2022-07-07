@@ -65,7 +65,7 @@ class CustomActor(BasePolicy):
         # prev_hedge = obs[..., 3]
 
         moneyness, expiry, volatility, drift = [obs[..., i] for i in range(4)]
-        delta = european_call_delta(moneyness, expiry, volatility, drift).to(action)
+        delta = european_call_delta(moneyness, expiry, volatility).to(action)
         lb = delta - F.leaky_relu(action[..., 0])
         ub = delta + F.leaky_relu(action[..., 1])
 

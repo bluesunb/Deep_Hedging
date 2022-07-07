@@ -113,7 +113,7 @@ class BSMarket(gym.Env):
 
         if self.random_drift:
             # self.drift = np.random.choice(np.arange(6)*2/10)      # [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
-            self.drift = self.reset_count // 5 % 5 * 0.2
+            self.drift = self.reset_count % 5 * 0.2
         if self.random_vol:
             # self.volatility = np.random.choice(np.arange(1,6)*2/10)     # [0.2, 0.4, 0.6, 0.8, 1.0]
             self.volatility = 2*self.reset_count % 10 * 0.1 + 0.2
