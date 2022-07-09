@@ -43,6 +43,7 @@ class CustomActor(BasePolicy):
         actor_net = create_module(features_dim, action_dim,
                                   net_arch, activation_fn, squash_output=False, net_kwargs=net_kwargs)
         self.mu = nn.Sequential(*actor_net)
+        self.tanh = nn.Tanh()
         self.flatten = nn.Flatten(-2)  # due to action_dim = 1 so last dim of mu(action) will 1
 
     def _get_constructor_parameters(self) -> Dict[str, Any]:
@@ -63,7 +64,7 @@ class CustomActor(BasePolicy):
         # policy.unscaled_action() 은 action_space = [-1, 1] 일 때 scaled_action을 그대로 리턴
         # prev_hedge = obs[..., 3]
 
-        moneyness, expiry, volatility, drift = [obs[..., i] for i in range(4)]
+        moneyness, expiry, volatility = [obs[..., i] for i in range(3)]
         delta = european_call_delta(moneyness, expiry, volatility).to(action)
         lb = delta - F.leaky_relu(action[..., 0])
         ub = delta + F.leaky_relu(action[..., 1])
@@ -79,6 +80,7 @@ class CustomActor(BasePolicy):
         if self.ntb_mode:
             action = self.ntb_forward(obs['obs'], action, obs['prev_hedge'])
         else:
+            action = self.tanh(action)
             action = self.flatten(action)
 
         return action
